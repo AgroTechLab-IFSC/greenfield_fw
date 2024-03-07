@@ -2,7 +2,6 @@
 
 **Unique Visits** <a href="https://trackgit.com"><img src="https://us-central1-trackgit-analytics.cloudfunctions.net/token/ping/lt3c4wply1ogu6r9hqsl" alt="trackgit-views" /></a>
 
-
 GreenField is an open (hw/fw) weather station developed into context of AgTech4All project from AgroTechLab.
 It´s based on ESP32-S3 MCU and COTS sensors and focus on microweather parameters for agriculture.<br><br>
 
