@@ -19,10 +19,10 @@
 #include <nvs_flash.h>
 #include <nvs.h>
 #include <esp_err.h>
-#include "atl_config.h"
+// #include "atl_config.h"
 #include "sdkconfig.h"
 
-static const char *TAG = "atl_storage";    /**< Function identification */
+static const char *TAG = "atl-storage";    /**< Function identification */
 
 /**
  * @fn atl_storage_init(void)

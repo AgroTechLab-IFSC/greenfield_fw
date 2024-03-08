@@ -21,7 +21,7 @@
 #include <esp_log.h>
 #include "sdkconfig.h"
 #include "atl_led.h"
-// #include "atl_storage.h"
+#include "atl_storage.h"
 
 /* Constants */
 static const char *TAG = "atl-main";
@@ -41,7 +41,7 @@ void app_main(void) {
     // atl_button_init();
 
     /* Storage initialization */
-    // atl_storage_init();
+    atl_storage_init();
     
     /* Update serial interface output */
     ESP_LOGI(TAG, "Initialization finished!");
