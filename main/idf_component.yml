@@ -1,2 +1,7 @@
 dependencies:
-  espressif/led_strip: "^2.4.1"
+  # Required IDF version
+  idf: ">=5.2"
+
+  # Addrassable RGB LED
+  espressif/led_strip: 
+    version: ">=2.5.3"
