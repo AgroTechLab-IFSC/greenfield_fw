@@ -1,6 +1,0 @@
-source "C:/espressif/v5.2/esp-idf/components/bootloader/Kconfig.projbuild"
-source "C:/espressif/v5.2/esp-idf/components/esp_app_format/Kconfig.projbuild"
-source "C:/espressif/v5.2/esp-idf/components/esp_rom/Kconfig.projbuild"
-source "C:/espressif/v5.2/esp-idf/components/esptool_py/Kconfig.projbuild"
-source "C:/espressif/v5.2/esp-idf/components/partition_table/Kconfig.projbuild"
-source "C:/AgroTechLab/AgTech4All/ats_04_fw/main/Kconfig.projbuild"
