@@ -21,6 +21,7 @@
 #include <esp_log.h>
 #include "sdkconfig.h"
 #include "atl_led.h"
+#include "atl_button.h"
 #include "atl_storage.h"
 
 /* Constants */
@@ -38,7 +39,7 @@ void app_main(void) {
     atl_led_builtin_init();
 
     /* Button initialization */
-    // atl_button_init();
+    atl_button_init();
 
     /* Storage initialization */
     atl_storage_init();

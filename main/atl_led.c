@@ -20,6 +20,7 @@
 #include <esp_log.h>
 #include <led_strip.h>
 #include "atl_led.h"
+#include "atl_storage.h"
 
 /* Constants */
 static const char *TAG = "atl-led"; /**< Function identification */
@@ -31,7 +32,7 @@ static bool led_builtin_state = false; /**< LED builtin enabled */
 static led_strip_handle_t led_strip; /**< LED builtin handle */
 static atl_led_rgb_color_t atl_led_color = {0, 0, 255}; /**< LED builtin color */
 TaskHandle_t atl_led_handle = NULL; /**< LED builtin task handle */
-
+static uint8_t button_count = 0; /**< Button pressed count */
 extern bool button_pressed; /**< Button pressed */
 
 /**
@@ -44,9 +45,30 @@ static void atl_led_task(void *args) {
     /* Task looping */
     while (true) {
 
-        /* Toogle led builtin */        
+        /* Check if button was pressed */
+        if (button_pressed) {
+            button_count++;
+
+            /* Check if is factory reset */
+            if (button_count == 10) {
+                ESP_LOGW(TAG, ">>> Executing factory reset!");
+                atl_led_builtin_blink(10, 100, 255, 69, 0);
+                atl_storage_erase_nvs();
+                esp_restart();
+            }
+
+            /* Toogle period */
+            vTaskDelay(pdMS_TO_TICKS(250));
+
+        } else {
+
+            /* Toogle period */
+            vTaskDelay(pdMS_TO_TICKS(CONFIG_ATL_LED_BUILTIN_PERIOD));
+
+        }
+
+        /* Toogle led builtin */
         atl_led_builtin_toogle();
-        vTaskDelay(pdMS_TO_TICKS(CONFIG_ATL_LED_BUILTIN_PERIOD));
     }    
 }
 

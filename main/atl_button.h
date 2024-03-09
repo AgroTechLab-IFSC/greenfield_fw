@@ -21,14 +21,12 @@ extern "C" {
 #endif
 #include <inttypes.h>
 
-
 /**
  * @fn atl_button_init(void)
  * @brief Initialize button task
  * @return Button config handle
 */
 void atl_button_init(void);
-
 
 #ifdef __cplusplus
 }

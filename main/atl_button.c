@@ -27,6 +27,7 @@ static const char *TAG = "atl-button"; /**< Function identification */
 /* Global variables */
 static QueueHandle_t button_evt_queue; /**< Button event queue */
 bool button_pressed = false; /**< Button pressed */
+TaskHandle_t atl_button_handle = NULL; /**< Button task handle */
 
 /**
  * @fn button_isr_handler(void *args)
@@ -58,7 +59,7 @@ static void atl_button_task(void *args) {
                 button_pressed = false;
                 atl_led_set_color(0, 0, 255);
             }             
-        }
+        }        
     }    
 }
 
