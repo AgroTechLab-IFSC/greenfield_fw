@@ -14,5 +14,9 @@
     ],
     "idf.pythonBinPathWin": "c:\\espressif\\v5.2\\esp-idf-tools\\python_env\\idf5.2_py3.11_env\\Scripts\\python.exe",
     "idf.toolsPathWin": "c:\\espressif\\v5.2\\esp-idf-tools",
-    "idf.flashType": "UART"
+    "idf.flashType": "UART",
+    "files.associations": {
+        "atl_config.h": "c",
+        "esp_log.h": "c"
+    }
 }

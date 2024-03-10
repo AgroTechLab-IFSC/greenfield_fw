@@ -4,7 +4,7 @@
  * @brief Configuration header.
  * @version 0.1.0
  * @date 2024-03-08 (created)
- * @date 2024-03-08 (updated)
+ * @date 2024-03-10 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -19,15 +19,31 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 #include <inttypes.h>
+#include <esp_err.h>
+#include "atl_led.h"
+#include "atl_wifi.h"
+
+/* External global variable */
+extern SemaphoreHandle_t atl_config_mutex;
 
 /**
  * @typedef atl_config_system_t
  * @brief System configuration structure.
  */
 typedef struct {
-    uint16_t    led_period; /**< LED period in milliseconds. */
+    atl_led_behaviour_e    led_behaviour; /**< LED behaviour. */
 } atl_config_system_t;
+
+/**
+ * @brief atl_config_wifi_t
+ * @brief WiFi configuration structure.
+ */
+typedef struct {
+    atl_wifi_mode_e    mode; /**< WiFi mode. */
+} atl_config_wifi_t;
 
 /**
  * @typedef atl_config_t
@@ -35,7 +51,16 @@ typedef struct {
  */
 typedef struct {
     atl_config_system_t     system; /**< System configuration. */
+    atl_config_wifi_t       wifi;   /**< WiFi configuration. */
 } atl_config_t;
+
+/**
+ * @fn atl_config_init(void)
+ * @brief Initialize configuration from NVS.
+ * @details If not possible load configuration file, create a new with default values.
+ * @return esp_err_t - If ERR_OK success. 
+ */
+esp_err_t atl_config_init(void);
 
 #ifdef __cplusplus
 }

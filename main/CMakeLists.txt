@@ -4,4 +4,5 @@ idf_component_register(
         "atl_led.c"
         "atl_button.c"
         "atl_storage.c"
+        "atl_config.c"
     INCLUDE_DIRS ".")

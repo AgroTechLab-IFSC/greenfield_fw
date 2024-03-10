@@ -4,7 +4,7 @@
  * @brief LED header.
  * @version 0.1.0
  * @date 2024-03-08 (created)
- * @date 2024-03-08 (updated)
+ * @date 2024-03-10 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -22,6 +22,17 @@ extern "C" {
 #include <inttypes.h>
 
 #define LED_STRIP_RMT_RES_HZ  (10 * 1000 * 1000)
+
+/**
+ * @enum    atl_led_behaviour_e
+ * @brief   LED behaviour.
+ */
+typedef enum {
+    ATL_LED_DISABLED,
+    ATL_LED_ENABLED_FAILS,
+    ATL_LED_ENABLED_COMM_FAILS,
+    ATL_LED_ENABLED_FULL,    
+} atl_led_behaviour_e;
 
 /**
  * @typedef atl_led_rgb_color_t
