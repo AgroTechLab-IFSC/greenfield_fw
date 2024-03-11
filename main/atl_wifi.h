@@ -4,7 +4,7 @@
  * @brief Wifi header.
  * @version 0.1.0
  * @date 2024-03-10 (created)
- * @date 2024-03-10 (updated)
+ * @date 2024-03-11 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -20,6 +20,9 @@
 extern "C" {
 #endif
 
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
+
 /**
  * @enum    atl_wifi_mode_e
  * @brief   WiFi mode.
@@ -29,6 +32,20 @@ typedef enum {
     ATL_WIFI_AP_MODE,
     ATL_WIFI_STA_MODE,   
 } atl_wifi_mode_e;
+
+/**
+ * @fn atl_wifi_init_softap(void)
+ * @brief Initialize WiFi interface in SoftAP mode.
+ * @return esp_err_t - If ERR_OK success, otherwise fail.
+ */
+esp_err_t atl_wifi_init_softap(void);
+
+/**
+ * @fn atl_wifi_init_sta(void)
+ * @brief Initialize WiFi interface in STA mode.
+ * @return esp_err_t - If ERR_OK success, otherwise fail.
+ */
+esp_err_t atl_wifi_init_sta(void);
 
 #ifdef __cplusplus
 }

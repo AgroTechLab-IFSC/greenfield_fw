@@ -24,7 +24,7 @@ extern "C" {
  * @fn atl_storage_init(void)
  * @brief Initialize NVS (Non-Volatile Storage).
  * @details Initialize NVS system. If errors ESP_ERR_NVS_NO_FREE_PAGES or ESP_ERR_NVS_NEW_VERSION_FOUND occurs, erase flash and retry initialization.
- * @return esp_err_t - If ERR_OK success. 
+ * @return esp_err_t - If ERR_OK success, otherwise fail. 
  */
 esp_err_t atl_storage_init(void);
 
@@ -32,7 +32,7 @@ esp_err_t atl_storage_init(void);
  * @fn atl_storage_erase_nvs(void)
  * @brief Erase NVS (Non-Volatile Storage).
  * @details Erase NVS.
- * @return esp_err_t - If ERR_OK success. 
+ * @return esp_err_t - If ERR_OK success, otherwise fail.
  */
 esp_err_t atl_storage_erase_nvs(void);
 

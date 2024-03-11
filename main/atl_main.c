@@ -11,7 +11,7 @@
  * Licensed under the CC BY-SA (<i>Creative Commons Attribution-ShareAlike</i>) 4.0 International Unported License (the <em>"License"</em>). You may not
  * use this file except in compliance with the License. You may obtain a copy of the License <a href="https://creativecommons.org/licenses/by-sa/4.0/legalcode" target="_blank">here</a>.
  * Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an <em>"as is" basis, 
- * without warranties or  conditions of any kind</em>, either express or implied. See the License for the specific language governing permissions 
+ * without warranties or conditions of any kind</em>, either express or implied. See the License for the specific language governing permissions 
  * and limitations under the License.
  */
 #include <stdio.h>
@@ -24,6 +24,7 @@
 #include "atl_button.h"
 #include "atl_storage.h"
 #include "atl_config.h"
+#include "atl_wifi.h"
 
 /* Constants */
 static const char *TAG = "atl-main";
@@ -47,6 +48,30 @@ void app_main(void) {
     
     /* Cofiguration initialization (load configuration from NVS or create new default config) */
     atl_config_init();
+
+    /* Check the WiFi startup mode defined by configuration file */
+    if (atl_config.wifi.mode != ATL_WIFI_DISABLED) {
+        
+        /* If in Access Point mode */
+        if (atl_config.wifi.mode == ATL_WIFI_AP_MODE) {
+            
+            /* Initialize WiFi in AP mode */
+            atl_wifi_init_softap();
+
+            /* Initialize name server (DNS) */
+            //atl_dns_server_init();
+
+        } else if (atl_config.wifi.mode == ATL_WIFI_STA_MODE) {
+            
+            /* Initialize WiFi in STA mode */
+            atl_wifi_init_sta();
+
+        }
+
+        /* Initialize webserver (HTTP) */
+        //atl_webserver_init();
+
+    }
 
     /* Update serial interface output */
     ESP_LOGI(TAG, "Initialization finished!");

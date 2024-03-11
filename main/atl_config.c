@@ -4,7 +4,7 @@
  * @brief Configuration functions.
  * @version 0.1.0
  * @date 2024-03-10 (created)
- * @date 2024-03-10 (updated)
+ * @date 2024-03-11 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -15,12 +15,12 @@
  * and limitations under the License.
  */
 
-// #include <string.h>
-// #include <esp_err.h>
+#include <string.h>
+#include <esp_err.h>
 #include <esp_log.h>
-// #include <esp_mac.h>
+#include <esp_mac.h>
 #include <nvs.h>
-// #include "sdkconfig.h"
+#include "sdkconfig.h"
 #include "atl_config.h"
 
 /* Constants */
@@ -36,21 +36,31 @@ atl_config_t atl_config;
  * @details Create configuration file with default values. 
  */
 static void atl_config_create_default(void) {    
-    // char ssid[32];
-    // unsigned char mac[6] = {0};
+    char ssid[32];
+    unsigned char mac[6] = {0};
 
     /** Creates default SYSTEM configuration **/
     atl_config.system.led_behaviour = ATL_LED_ENABLED_FULL;
 
     /** Creates default WiFi configuration **/
-    atl_config.wifi.mode = ATL_WIFI_AP_MODE;          
+    atl_config.wifi.mode = ATL_WIFI_AP_MODE;
+    esp_efuse_mac_get_default(mac);
+    sprintf(ssid, "%s%02x%02x%02x", CONFIG_ATL_WIFI_AP_SSID_PREFIX, mac[3], mac[4], mac[5]+1);
+    strncpy((char*)&atl_config.wifi.ap_ssid, ssid, sizeof(atl_config.wifi.ap_ssid));
+    strncpy((char*)&atl_config.wifi.ap_pass, CONFIG_ATL_WIFI_AP_PASSWORD, sizeof(atl_config.wifi.ap_pass));
+    atl_config.wifi.ap_channel = CONFIG_ATL_WIFI_AP_CHANNEL;
+    atl_config.wifi.ap_max_conn = CONFIG_ATL_WIFI_AP_MAX_STA_CONN;
+    strncpy((char*)&atl_config.wifi.sta_ssid, "AgroTechLab", sizeof(atl_config.wifi.sta_ssid));
+    strncpy((char*)&atl_config.wifi.sta_pass, CONFIG_ATL_WIFI_AP_PASSWORD, sizeof(atl_config.wifi.sta_pass));
+    atl_config.wifi.sta_channel = CONFIG_ATL_WIFI_AP_CHANNEL;
+    atl_config.wifi.sta_max_conn_retry = CONFIG_ATL_WIFI_STA_MAX_CONN_RETRY;    
 }
 
 /**
  * @fn atl_config_init(void)
  * @brief Initialize configuration from NVS.
  * @details If not possible load configuration file, create a new with default values.
- * @return esp_err_t - If ERR_OK success. 
+ * @return esp_err_t - If ERR_OK success, otherwise fail.
  */
 esp_err_t atl_config_init(void) {
     esp_err_t err;

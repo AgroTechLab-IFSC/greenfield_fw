@@ -5,4 +5,5 @@ idf_component_register(
         "atl_button.c"
         "atl_storage.c"
         "atl_config.c"
+        "atl_wifi.c"       
     INCLUDE_DIRS ".")

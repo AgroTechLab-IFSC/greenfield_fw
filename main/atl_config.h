@@ -42,7 +42,15 @@ typedef struct {
  * @brief WiFi configuration structure.
  */
 typedef struct {
-    atl_wifi_mode_e    mode; /**< WiFi mode. */
+    atl_wifi_mode_e mode; /**< WiFi mode. */
+    uint8_t ap_ssid[32]; /**< WiFi AP SSID.*/
+    uint8_t ap_pass[64]; /**< WiFi AP password.*/
+    uint8_t ap_channel; /**< WiFi AP channel.*/
+    uint8_t ap_max_conn; /**< WiFi AP maximum STA connections.*/
+    uint8_t sta_ssid[32]; /**< WiFi STA SSID.*/
+    uint8_t sta_pass[64]; /**< WiFi STA password.*/
+    uint8_t sta_channel; /**< WiFi STA channel.*/
+    uint8_t sta_max_conn_retry; /**< WiFi maximum connection retry.*/
 } atl_config_wifi_t;
 
 /**
