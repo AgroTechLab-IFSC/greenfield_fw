@@ -53,7 +53,11 @@ static void atl_config_create_default(void) {
     strncpy((char*)&atl_config.wifi.sta_ssid, "AgroTechLab", sizeof(atl_config.wifi.sta_ssid));
     strncpy((char*)&atl_config.wifi.sta_pass, CONFIG_ATL_WIFI_AP_PASSWORD, sizeof(atl_config.wifi.sta_pass));
     atl_config.wifi.sta_channel = CONFIG_ATL_WIFI_AP_CHANNEL;
-    atl_config.wifi.sta_max_conn_retry = CONFIG_ATL_WIFI_STA_MAX_CONN_RETRY;    
+    atl_config.wifi.sta_max_conn_retry = CONFIG_ATL_WIFI_STA_MAX_CONN_RETRY;
+
+    /** Creates default Webserver configuration **/
+    strncpy((char*)&atl_config.webserver.username, CONFIG_ATL_WEBSERVER_ADMIN_USER, sizeof(atl_config.webserver.username));
+    strncpy((char*)&atl_config.webserver.password, CONFIG_ATL_WEBSERVER_ADMIN_PASS, sizeof(atl_config.webserver.password));
 }
 
 /**

@@ -26,6 +26,7 @@
 #include "atl_config.h"
 #include "atl_wifi.h"
 #include "atl_dns.h"
+#include "atl_webserver.h"
 
 /* Constants */
 static const char *TAG = "atl-main";
@@ -60,7 +61,7 @@ void app_main(void) {
             atl_wifi_init_softap();
 
             /* Initialize name server (DNS) */
-            atl_dns_server_init();
+            // atl_dns_server_init();
 
         } else if (atl_config.wifi.mode == ATL_WIFI_STA_MODE) {
             
@@ -69,9 +70,8 @@ void app_main(void) {
 
         }
 
-        /* Initialize webserver (HTTP) */
-        //atl_webserver_init();
-
+        /* Initialize webserver (HTTPS) */
+        atl_webserver_init();
     }
 
     /* Update serial interface output */

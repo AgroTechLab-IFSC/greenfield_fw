@@ -7,4 +7,14 @@ idf_component_register(
         "atl_config.c"
         "atl_wifi.c"
         "atl_dns.c"
-    INCLUDE_DIRS ".")
+        "atl_webserver.c"
+    INCLUDE_DIRS "."
+    EMBED_FILES                         
+        "website/favicon.ico"
+        "website/agrotechlab.css"
+        "website/agrotechlab.js"
+        "website/header.html"
+        "website/footer.html"        
+    EMBED_TXTFILES
+        "certs/cacert.pem"
+        "certs/prvtkey.pem")

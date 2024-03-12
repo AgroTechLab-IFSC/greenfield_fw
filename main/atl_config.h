@@ -54,12 +54,22 @@ typedef struct {
 } atl_config_wifi_t;
 
 /**
+ * @brief atl_config_webserver_t
+ * @brief Webserver configuration structure.
+ */
+typedef struct {    
+    uint8_t username[32]; /**< WiFi AP SSID.*/
+    uint8_t password[64]; /**< WiFi AP password.*/
+} atl_config_webserver_t;
+
+/**
  * @typedef atl_config_t
  * @brief Configuration structure.
  */
 typedef struct {
-    atl_config_system_t     system; /**< System configuration. */
-    atl_config_wifi_t       wifi;   /**< WiFi configuration. */
+    atl_config_system_t     system;     /**< System configuration. */
+    atl_config_wifi_t       wifi;       /**< WiFi configuration. */
+    atl_config_webserver_t  webserver;  /**< Webserver configuration. */
 } atl_config_t;
 
 /**
