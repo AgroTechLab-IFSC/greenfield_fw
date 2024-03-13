@@ -124,3 +124,56 @@ esp_err_t atl_config_init(void) {
         nvs_close(nvs_handler);
         return err;
 }
+
+/**
+ * @fn atl_config_commit_nvs(void)
+ * @brief Initialize configuration from NVS.
+ * @details If not possible load configuration file, create a new with default values.
+ * @return esp_err_t - If ERR_OK success, otherwise fail.
+ */
+esp_err_t atl_config_commit_nvs(void) {
+    esp_err_t err = ESP_OK;
+    nvs_handle_t nvs_handler;
+    ESP_LOGI(TAG, "Commiting configuration at NVS");    
+    
+    /* Open NVS system */    
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        ESP_LOGD(TAG, "Mounting NVS storage");
+        err = nvs_open("nvs", NVS_READWRITE, &nvs_handler);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Fail mounting NVS storage");
+            goto error_proc;
+        }
+
+        /* Create atl_config file */
+        err = nvs_set_blob(nvs_handler, "atl_config", &atl_config, sizeof(atl_config_t));
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Fail creating new configuration file!");
+            goto error_proc;
+        }
+        
+        /* Write atl_config file in NVS */
+        err = nvs_commit(nvs_handler);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "Fail writing new configuration file!");
+            goto error_proc;
+        }
+        
+        /* Close NVS */
+        ESP_LOGD(TAG, "Unmounting NVS storage");
+        nvs_close(nvs_handler);
+        xSemaphoreGive(atl_config_mutex);
+        return ESP_OK;
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+        return ESP_FAIL;
+    }
+
+/* Error procedure */
+error_proc:
+    ESP_LOGE(TAG, "Error: %s", esp_err_to_name(err));
+    nvs_close(nvs_handler);
+    xSemaphoreGive(atl_config_mutex);
+    return err;
+}

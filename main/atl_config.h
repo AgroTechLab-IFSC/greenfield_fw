@@ -30,12 +30,31 @@ extern "C" {
 extern SemaphoreHandle_t atl_config_mutex;
 
 /**
+ * @typedef atl_ota_behaviour_e
+ * @brief ATL OTA behaviour.
+ */
+typedef enum {	
+    ATL_OTA_BEHAVIOUR_DISABLED,
+	ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY,
+	ATL_OTA_BEHAVIOU_DOWNLOAD,
+	ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT,    
+} atl_ota_behaviour_e;
+
+/**
  * @typedef atl_config_system_t
  * @brief System configuration structure.
  */
 typedef struct {
     atl_led_behaviour_e    led_behaviour; /**< LED behaviour. */
 } atl_config_system_t;
+
+/**
+ * @typedef atl_config_ota_t
+ * @brief OTA configuration structure.
+ */
+typedef struct {
+    atl_ota_behaviour_e    behaviour; /**< OTA behaviour. */
+} atl_config_ota_t;
 
 /**
  * @brief atl_config_wifi_t
@@ -68,6 +87,7 @@ typedef struct {
  */
 typedef struct {
     atl_config_system_t     system;     /**< System configuration. */
+    atl_config_ota_t        ota;        /**< OTA configuration. */
     atl_config_wifi_t       wifi;       /**< WiFi configuration. */
     atl_config_webserver_t  webserver;  /**< Webserver configuration. */
 } atl_config_t;
@@ -79,6 +99,14 @@ typedef struct {
  * @return esp_err_t - If ERR_OK success. 
  */
 esp_err_t atl_config_init(void);
+
+/**
+ * @fn atl_config_commit_nvs(void)
+ * @brief Initialize configuration from NVS.
+ * @details If not possible load configuration file, create a new with default values.
+ * @return esp_err_t - If ERR_OK success, otherwise fail.
+ */
+esp_err_t atl_config_commit_nvs(void);
 
 #ifdef __cplusplus
 }

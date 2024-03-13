@@ -14,12 +14,17 @@
  * without warranties or conditions of any kind</em>, either express or implied. See the License for the specific language governing permissions 
  * and limitations under the License.
  */
-#include <esp_log.h>
 #include <esp_err.h>
+#include <esp_log.h>
 #include <esp_https_server.h>
 #include <esp_tls_crypto.h>
+#include <esp_ota_ops.h>
+#include <esp_image_format.h>
+#include <esp_mac.h>
+#include <cJSON.h>
 #include "atl_webserver.h"
 #include "atl_config.h"
+#include "atl_led.h"
 
 /* Constants */
 static const char *TAG = "atl-webserver";
@@ -187,6 +192,528 @@ static const httpd_uri_t home_get = {
     .handler = home_get_handler
 };
 
+/**
+ * @fn conf_wifi_get_handler(httpd_req_t *req)
+ * @brief GET handler for WiFi configuration webpage
+ * @details HTTP GET handler for WiFi configuration webpage
+ * @param[in] req - request
+ * @return ESP error code
+ */
+static esp_err_t conf_wifi_get_handler(httpd_req_t *req) {
+    char resp_val[65];
+    ESP_LOGD(TAG, "Sending conf_wifi.html");
+
+    /* Set response status, type and header */
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Connection", "keep-alive");
+
+    /* Send header chunck */
+    const size_t header_size = (header_end - header_start);
+    httpd_resp_send_chunk(req, (const char *)header_start, header_size);
+
+    /* Make a local copy of WIFI configuration */
+    atl_config_wifi_t wifi_config;
+    memset(&wifi_config, 0, sizeof(atl_config_wifi_t));
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&wifi_config, &atl_config.wifi, sizeof(atl_config_wifi_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+
+    /* Send article chunks */    
+    httpd_resp_sendstr_chunk(req, "<form action=\"conf_wifi_post.html\" method=\"post\"> \
+                                      <div class=\"row\"> \
+                                      <table><tr><th>Parameter</th><th>Value</th></tr> \
+                                      <tr><td>MAC Address</td><td>");
+    uint8_t mac_addr[6] = {0};
+    esp_efuse_mac_get_default((uint8_t*)&mac_addr);
+    if (wifi_config.mode == ATL_WIFI_AP_MODE) {
+        mac_addr[5]++;
+    } 
+    sprintf(resp_val, "%02X:%02X:%02X:%02X:%02X:%02X", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req,"</td></tr><tr><td>WiFi mode</td><td><select name=\"wifi_mode\" id=\"wifi_mode\">");
+    if (wifi_config.mode == ATL_WIFI_AP_MODE) {
+        httpd_resp_sendstr_chunk(req, "<option selected value=\"AP_MODE\">Access Point</option> \
+                                       <option value=\"STA_MODE\">Station</option> \
+                                       </select></td></tr>");
+    } else if (wifi_config.mode == ATL_WIFI_STA_MODE) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"AP_MODE\">Access Point</option> \
+                                       <option selected value=\"STA_MODE\">Station</option> \
+                                       </select></td></tr>");
+    }
+    
+    /* Process station BSSID name */
+    httpd_resp_sendstr_chunk(req, "<tr><td><label for=\"bssid\">Network (BSSID):</label></td> \
+                                    <td><input type=\"text\" id=\"bssid\" name=\"bssid\" value=\"");        
+    sprintf(resp_val, "%s", wifi_config.sta_ssid);
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req, "\"></td></tr>");
+
+    /* Process station BSSID password */
+    httpd_resp_sendstr_chunk(req, "<tr><td><label for=\"pass\">Password:</label></td> \
+                                   <td><input type=\"password\" id=\"pass\" name=\"pass\" value=\"");           
+    sprintf(resp_val, "%s", wifi_config.sta_pass);          
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req, "\"></td></tr></table><br><div class=\"reboot-msg\" id=\"delayMsg\"></div>");
+
+    /* Send button chunks */
+    httpd_resp_sendstr_chunk(req, "<br><input class=\"btn_generic\" name=\"btn_save_reboot\" type=\"submit\" \
+                                    onclick=\"delayRedirect()\" value=\"Save & Reboot\"></div></form>");     
+
+    /* Send footer chunck */
+    const size_t footer_size = (footer_end - footer_start);
+    httpd_resp_send_chunk(req, (const char *)footer_start, footer_size);
+
+    /* Send empty chunk to signal HTTP response completion */
+    httpd_resp_sendstr_chunk(req, NULL);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP GET Handler for wifi webpage
+ */
+static const httpd_uri_t conf_wifi_get = {
+    .uri = "/conf_wifi.html",
+    .method = HTTP_GET,
+    .handler = conf_wifi_get_handler
+};
+
+/**
+ * @fn conf_wifi_post_handler(httpd_req_t *req)
+ * @brief POST handler for WiFi configuration webpage
+ * @details HTTP POST handler for WiFi configuration webpage
+ * @param[in] req - request
+ * @return ESP error code
+ */
+static esp_err_t conf_wifi_post_handler(httpd_req_t *req) {
+    ESP_LOGD(TAG, "Processing POST conf_wifi_post");
+
+    /* Allocate memory to process request */
+    int    ret;
+    size_t off = 0;
+    char*  buf = calloc(1, req->content_len + 1);
+    if (!buf) {
+        ESP_LOGE(TAG, "Failed to allocate memory of %d bytes!", req->content_len + 1);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    /* Receive all data */
+    while (off < req->content_len) {
+        /* Read data received in the request */
+        ret = httpd_req_recv(req, buf + off, req->content_len - off);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+                httpd_resp_send_408(req);
+            }
+            free(buf);
+            return ESP_FAIL;
+        }
+        off += ret;
+    }
+    buf[off] = '\0';
+
+    /* Make a local copy of WIFI configuration */
+    atl_config_wifi_t wifi_config;
+    memset(&wifi_config, 0, sizeof(atl_config_wifi_t));
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&wifi_config, &atl_config.wifi, sizeof(atl_config_wifi_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+
+    /* Search for custom header field */
+    char* token;
+    char* key;
+    char* value;
+    int token_len, value_len;
+    token = strtok(buf, "&");
+    while (token) {
+        token_len = strlen(token);
+        value = strstr(token, "=") + 1;
+        value_len = strlen(value);
+        key = calloc(1, (token_len - value_len));
+        if (!key) {
+            ESP_LOGE(TAG, "Failed to allocate memory!");
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        memcpy(key, token, (token_len - value_len - 1));
+        if (strcmp(key, "wifi_mode") == 0) {
+            if (strcmp(value, "AP_MODE") == 0) {
+                wifi_config.mode = ATL_WIFI_AP_MODE;
+            } else if (strcmp(value, "STA_MODE") == 0) {
+                wifi_config.mode = ATL_WIFI_STA_MODE;
+            } else if (strcmp(value, "WIFI_DISABLED") == 0) {
+                wifi_config.mode = ATL_WIFI_DISABLED;
+            }
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "bssid") == 0) {
+            strncpy((char*)&wifi_config.sta_ssid, value, sizeof(wifi_config.sta_ssid));
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "pass") == 0) {
+            strncpy((char*)&wifi_config.sta_pass, value, sizeof(wifi_config.sta_pass));
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        }
+        free(key);
+        token = strtok(NULL, "&");
+    }
+    
+    /* Update current WIFI configuration */        
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&atl_config.wifi, &wifi_config, sizeof(atl_config_wifi_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+
+    /* Commit configuration to NVS */
+    atl_config_commit_nvs();    
+
+    /* Restart X200 device */
+    ESP_LOGW(TAG, ">>> Rebooting X200!");
+    atl_led_builtin_blink(10, 100, 255, 69, 0);
+    esp_restart();
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP POST Handler for wifi webpage
+ */
+static const httpd_uri_t conf_wifi_post = {
+    .uri = "/conf_wifi_post.html",
+    .method = HTTP_POST,
+    .handler = conf_wifi_post_handler
+};
+
+/**
+ * @fn conf_fw_get_update_handler(httpd_req_t *req)
+ * @brief GET handler
+ * @details HTTP GET Handler
+ * @param[in] req - request
+ * @return ESP error code
+ */
+static esp_err_t conf_fw_update_get_handler(httpd_req_t *req) {
+    ESP_LOGD(TAG, "Sending conf_fw_update.html");
+    char resp_val[65];
+
+    /* Set response status, type and header */
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Connection", "keep-alive");
+
+    /* Send header chunck */
+    const size_t header_size = (header_end - header_start);
+    httpd_resp_send_chunk(req, (const char *)header_start, header_size);
+
+    /* Send information chunks */
+    httpd_resp_sendstr_chunk(req, "<table><tr><th>Parameter</th><th>Value</th></tr><tr><td>Firmware version</td><td>");
+    esp_app_desc_t app_info;
+    const esp_partition_t *partition_info_ptr;
+    partition_info_ptr = esp_ota_get_running_partition();
+    if (esp_ota_get_partition_description(partition_info_ptr, &app_info) == ESP_OK) {
+        sprintf(resp_val, "%s", app_info.version);
+        httpd_resp_sendstr_chunk(req, resp_val);
+        httpd_resp_sendstr_chunk(req, "</td></tr><tr><td>Build</td><td>");
+        sprintf(resp_val, "%s %s", app_info.date, app_info.time);
+        httpd_resp_sendstr_chunk(req, resp_val);
+        httpd_resp_sendstr_chunk(req, "</td></tr><tr><td>SDK version</td><td>");
+        sprintf(resp_val, "%s", app_info.idf_ver);
+        httpd_resp_sendstr_chunk(req, resp_val);
+        httpd_resp_sendstr_chunk(req, "</td></tr><tr><td>Running partition name</td><td>");
+        sprintf(resp_val, "%s", partition_info_ptr->label);
+        httpd_resp_sendstr_chunk(req, resp_val);
+        httpd_resp_sendstr_chunk(req, "</td></tr><tr><td>Running partition size</td><td>");
+        sprintf(resp_val, "%ld bytes", partition_info_ptr->size);
+        httpd_resp_sendstr_chunk(req, resp_val);
+    }
+    const esp_partition_pos_t running_pos  = {
+        .offset = partition_info_ptr->address,
+        .size = partition_info_ptr->size,
+    };
+    esp_image_metadata_t data;
+    data.start_addr = running_pos.offset;
+    esp_image_verify(ESP_IMAGE_VERIFY, &running_pos, &data);
+    httpd_resp_sendstr_chunk(req, "</td></tr><tr><td>Running firmware size</td><td>");
+    sprintf(resp_val, "%ld bytes", data.image_len);
+    httpd_resp_sendstr_chunk(req, resp_val);    
+    httpd_resp_sendstr_chunk(req, "</td></tr></table><br><br>");
+
+    /* Make a local copy of WIFI configuration */
+    atl_config_ota_t ota_config;
+    memset(&ota_config, 0, sizeof(atl_config_ota_t));
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&ota_config, &atl_config.ota, sizeof(atl_config_ota_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+
+    /* Send parameters chunks */
+    httpd_resp_sendstr_chunk(req, "<form action=\"conf_fw_update_post.html\" method=\"post\"> \
+                                      <div class=\"row\"> \
+                                      <table><tr><th>Parameter</th><th>Value</th></tr> \
+                                      <tr><td>FW Update Behaviour</td>");
+    
+    httpd_resp_sendstr_chunk(req,"<td><select name=\"ota_behaviour\" id=\"ota_behaviour\">");
+    if (ota_config.behaviour == ATL_OTA_BEHAVIOUR_DISABLED) {
+        httpd_resp_sendstr_chunk(req, "<option selected value=\"ATL_OTA_BEHAVIOUR_DISABLED\">Disabled</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY\">Verify & Notify</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOU_DOWNLOAD\">Download</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT\">Download & Reboot</option> \
+                                       </select></td></tr>");
+    } else if (ota_config.behaviour == ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"ATL_OTA_BEHAVIOUR_DISABLED\">Disabled</option> \
+                                       <option selected value=\"ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY\">Verify & Notify</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOU_DOWNLOAD\">Download</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT\">Download & Reboot</option> \
+                                       </select></td></tr>");
+    } else if (ota_config.behaviour == ATL_OTA_BEHAVIOU_DOWNLOAD) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"ATL_OTA_BEHAVIOUR_DISABLED\">Disabled</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY\">Verify & Notify</option> \
+                                       <option selected value=\"ATL_OTA_BEHAVIOU_DOWNLOAD\">Download</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT\">Download & Reboot</option> \
+                                       </select></td></tr>");
+    } else if (ota_config.behaviour == ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"ATL_OTA_BEHAVIOUR_DISABLED\">Disabled</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY\">Verify & Notify</option> \
+                                       <option value=\"ATL_OTA_BEHAVIOU_DOWNLOAD\">Download</option> \
+                                       <option selected value=\"ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT\">Download & Reboot</option> \
+                                       </select></td></tr>");
+    }
+    httpd_resp_sendstr_chunk(req, "</table><br><div class=\"reboot-msg\" id=\"delayMsg\"></div>");
+
+    /* Send button chunks */    
+    httpd_resp_sendstr_chunk(req, "<br><input class=\"btn_generic\" name=\"btn_save_reboot\" type=\"submit\" \
+                                    onclick=\"delayRedirect()\" value=\"Save & Reboot\"></div></form>"); 
+    //httpd_resp_sendstr_chunk(req, "</td></tr></table><br><input class=\"btn_generic\" name=\"btn_upload_fw\" type=\"submit\" value=\"Upload firmware\"></div></form>");
+
+    /* Send footer chunck */
+    const size_t footer_size = (footer_end - footer_start);
+    httpd_resp_send_chunk(req, (const char *)footer_start, footer_size);
+
+    /* Send empty chunk to signal HTTP response completion */
+    httpd_resp_sendstr_chunk(req, NULL);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP GET Handler for firmware update webpage
+ */
+static const httpd_uri_t conf_fw_update_get = {
+    .uri = "/conf_fw_update.html",
+    .method = HTTP_GET,
+    .handler = conf_fw_update_get_handler
+};
+
+/**
+ * @fn conf_fw_update_post_handler(httpd_req_t *req)
+ * @brief POST handler
+ * @details HTTP POST Handler
+ * @param[in] req - request
+ * @return ESP error code
+ */
+static esp_err_t conf_fw_update_post_handler(httpd_req_t *req) {
+    ESP_LOGD(TAG, "Processing POST conf_fw_update_post");
+
+    /* Allocate memory to process request */
+    int    ret;
+    size_t off = 0;
+    char*  buf = calloc(1, req->content_len + 1);
+    if (!buf) {
+        ESP_LOGE(TAG, "Failed to allocate memory of %d bytes!", req->content_len + 1);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    /* Receive all data */
+    while (off < req->content_len) {
+        /* Read data received in the request */
+        ret = httpd_req_recv(req, buf + off, req->content_len - off);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+                httpd_resp_send_408(req);
+            }
+            free(buf);
+            return ESP_FAIL;
+        }
+        off += ret;
+    }
+    buf[off] = '\0';
+
+    /* Make a local version of OTA configuration */
+    atl_config_ota_t ota_config;
+    memset(&ota_config, 0, sizeof(atl_config_ota_t));    
+
+    /* Search for custom header field */
+    char* token;
+    char* key;
+    char* value;
+    int token_len, value_len;
+    token = strtok(buf, "&");
+    while (token) {
+        token_len = strlen(token);
+        value = strstr(token, "=") + 1;
+        value_len = strlen(value);
+        key = calloc(1, (token_len - value_len));
+        if (!key) {
+            ESP_LOGE(TAG, "Failed to allocate memory!");
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        memcpy(key, token, (token_len - value_len - 1));
+        if (strcmp(key, "ota_behaviour") == 0) {
+            if (strcmp(value, "ATL_OTA_BEHAVIOUR_DISABLED") == 0) {
+                ota_config.behaviour = ATL_OTA_BEHAVIOUR_DISABLED;
+            } else if (strcmp(value, "ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY") == 0) {
+                ota_config.behaviour = ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY;
+            } else if (strcmp(value, "ATL_OTA_BEHAVIOU_DOWNLOAD") == 0) {
+                ota_config.behaviour = ATL_OTA_BEHAVIOU_DOWNLOAD;
+            } else if (strcmp(value, "ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT") == 0) {
+                ota_config.behaviour = ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT;
+            }
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } 
+        free(key);
+        token = strtok(NULL, "&");
+    }
+    
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&ota_config, &atl_config.ota, sizeof(atl_config_ota_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+
+    /* Commit configuration to NVS */
+    atl_config_commit_nvs();
+    
+    /* Restart X200 device */
+    ESP_LOGW(TAG, ">>> Rebooting GreenField!");
+    atl_led_builtin_blink(10, 100, 255, 69, 0);
+    esp_restart();
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP POST Handler for firmware update webpage
+ */
+static const httpd_uri_t conf_fw_update_post = {
+    .uri = "/conf_fw_update_post.html",
+    .method = HTTP_POST,
+    .handler = conf_fw_update_post_handler
+};
+
+/**
+ * @fn conf_reboot_get_handler(httpd_req_t *req)
+ * @brief GET handler
+ * @details HTTP GET Handler
+ * @param[in] req - request
+ * @return ESP error code
+ */
+static esp_err_t conf_reboot_get_handler(httpd_req_t *req) {
+    ESP_LOGD(TAG, "Sending conf_reboot.html");
+    char resp_val[65];
+
+    /* Set response status, type and header */
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Connection", "keep-alive");
+
+    /* Send header chunck */
+    const size_t header_size = (header_end - header_start);
+    httpd_resp_send_chunk(req, (const char *)header_start, header_size);
+
+    /* Send article chunks */
+    httpd_resp_sendstr_chunk(req, "<form action=\"conf_reboot_post.html\" method=\"post\"> \
+        <div class=\"row\"> \
+        <table><tr><th>Parameter</th><th>Value</th></tr> \
+        <tr><td>Last reboot reason</td><td>");
+    esp_reset_reason_t reset_reason;
+    reset_reason = esp_reset_reason();
+    if (reset_reason == ESP_RST_UNKNOWN) {
+        sprintf(resp_val, "Reset reason can not be determined");
+    } else if (reset_reason == ESP_RST_POWERON) {
+        sprintf(resp_val, "Reset due to power-on event");
+    } else if (reset_reason == ESP_RST_EXT) {
+        sprintf(resp_val, "Reset by external pin");
+    } else if (reset_reason == ESP_RST_SW) {
+        sprintf(resp_val, "Software reset");
+    } else if (reset_reason == ESP_RST_PANIC) {
+        sprintf(resp_val, "Software reset due to exception/panic");
+    } else if (reset_reason == ESP_RST_INT_WDT) {
+        sprintf(resp_val, "Reset (software or hardware) due to interrupt watchdog");
+    } else if (reset_reason == ESP_RST_TASK_WDT) {
+        sprintf(resp_val, "Reset due to task watchdog");
+    } else if (reset_reason == ESP_RST_WDT) {
+        sprintf(resp_val, "Reset due to other watchdogs");
+    } else if (reset_reason == ESP_RST_DEEPSLEEP) {
+        sprintf(resp_val, "Reset after exiting deep sleep mode");
+    } else if (reset_reason == ESP_RST_BROWNOUT) {
+        sprintf(resp_val, "Brownout reset (software or hardware)");
+    } else if (reset_reason == ESP_RST_SDIO) {
+        sprintf(resp_val, "Reset over SDIO");
+    }
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req, "</td></tr></table><br><input class=\"btn_generic\" name=\"btn_reboot\" type=\"submit\" value=\"Reboot X200\"></div></form>");
+
+    /* Send footer chunck */
+    const size_t footer_size = (footer_end - footer_start);
+    httpd_resp_send_chunk(req, (const char *)footer_start, footer_size);
+
+    /* Send empty chunk to signal HTTP response completion */
+    httpd_resp_sendstr_chunk(req, NULL);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP GET Handler for reboot webpage
+ */
+static const httpd_uri_t conf_reboot_get = {
+    .uri = "/conf_reboot.html",
+    .method = HTTP_GET,
+    .handler = conf_reboot_get_handler
+};
+
+/**
+ * @fn conf_reboot_post_handler(httpd_req_t *req)
+ * @brief POST handler
+ * @details HTTP POST Handler
+ * @param[in] req - request
+ * @return ESP error code
+ */
+static esp_err_t conf_reboot_post_handler(httpd_req_t *req) {
+    ESP_LOGD(TAG, "Processing POST conf_reboot");
+
+    /* Restart GreenField device */
+    ESP_LOGW(TAG, ">>> Rebooting GreenField!");
+    atl_led_builtin_blink(10, 100, 255, 69, 0);
+    esp_restart();
+
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP POST Handler for reboot webpage
+ */
+static const httpd_uri_t conf_reboot_post = {
+    .uri = "/conf_reboot_post.html",
+    .method = HTTP_POST,
+    .handler = conf_reboot_post_handler
+};
+
 /* Basic authentication information */
 typedef struct {
     char* username;
@@ -305,8 +832,6 @@ static void httpd_register_basic_auth(httpd_handle_t server) {
         snprintf((char*)basic_auth_info->username, sizeof(atl_config.webserver.username), "%s", atl_config.webserver.username);
         basic_auth_info->password = calloc(1, sizeof(atl_config.webserver.password));
         snprintf((char*)basic_auth_info->password, sizeof(atl_config.webserver.password), "%s", atl_config.webserver.password);        
-        ESP_LOGW(TAG, "User: %s", basic_auth_info->username);
-        ESP_LOGW(TAG, "Pass: %s", basic_auth_info->password);
 
         /* Release cofiguration mutex */
         xSemaphoreGive(atl_config_mutex);
@@ -393,25 +918,21 @@ httpd_handle_t atl_webserver_init(void) {
         httpd_register_uri_handler(server, &css);
         httpd_register_uri_handler(server, &js);
         httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);        
-        httpd_register_uri_handler(server, &home_get);
-        // httpd_register_uri_handler(server, &conf_moisture_get);
-        // httpd_register_uri_handler(server, &conf_moisture_post);
-        // httpd_register_uri_handler(server, &conf_analog_input_get);
-        // httpd_register_uri_handler(server, &conf_analog_input_post);
+        httpd_register_uri_handler(server, &home_get);        
         // httpd_register_uri_handler(server, &conf_mqtt_get);
         // httpd_register_uri_handler(server, &conf_mqtt_post);        
-        // httpd_register_uri_handler(server, &conf_wifi_get);
-        // httpd_register_uri_handler(server, &conf_wifi_post);
+        httpd_register_uri_handler(server, &conf_wifi_get);
+        httpd_register_uri_handler(server, &conf_wifi_post);
         // httpd_register_uri_handler(server, &conf_ethernet_get);
         // httpd_register_uri_handler(server, &conf_4g_get);
         // httpd_register_uri_handler(server, &conf_lora_get);
         // httpd_register_uri_handler(server, &conf_configuration_get);
         // httpd_register_uri_handler(server, &api_v1_system_conf);
         // httpd_register_uri_handler(server, &conf_configuration_post);
-        // httpd_register_uri_handler(server, &conf_fw_update_get);
-        // httpd_register_uri_handler(server, &conf_fw_update_post);
-        // httpd_register_uri_handler(server, &conf_reboot_get);
-        // httpd_register_uri_handler(server, &conf_reboot_post);
+        httpd_register_uri_handler(server, &conf_fw_update_get);
+        httpd_register_uri_handler(server, &conf_fw_update_post);
+        httpd_register_uri_handler(server, &conf_reboot_get);
+        httpd_register_uri_handler(server, &conf_reboot_post);
         httpd_register_basic_auth(server);               
     } else {        
         ESP_LOGE(TAG, "Fail starting webserver!");
