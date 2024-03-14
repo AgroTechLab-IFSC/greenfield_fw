@@ -25,6 +25,12 @@
 /* Constants */
 static const char *TAG = "atl-led"; /**< Function identification */
 static const uint16_t led_mutex_timeout = 5000; /**< LED builtin mutex default timeout */
+const char *atl_led_behaviour_str[] = {
+    "ATL_LED_DISABLED",
+    "ATL_LED_ENABLED_FAILS",
+    "ATL_LED_ENABLED_COMM_FAILS",
+    "ATL_LED_ENABLED_FULL",
+};
 
 /* Global variables */
 static SemaphoreHandle_t led_mutex; /**< LED builtin mutex */
@@ -70,6 +76,15 @@ static void atl_led_task(void *args) {
         /* Toogle led builtin */
         atl_led_builtin_toogle();
     }    
+}
+
+/**
+ * @brief Get the led behaviour string object
+ * @param behaviour 
+ * @return Function enum const* 
+ */
+const char* atl_led_get_behaviour_str(atl_led_behaviour_e behaviour) {
+    return atl_led_behaviour_str[behaviour];
 }
 
 /**

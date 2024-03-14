@@ -26,6 +26,11 @@
 
 /* Constants */
 static const char *TAG = "atl-wifi";
+const char *atl_wifi_mode_str[] = {
+    "ATL_WIFI_DISABLED",
+    "ATL_WIFI_AP_MODE",
+    "ATL_WIFI_STA_MODE",
+};
 
 /* Global variables */
 static EventGroupHandle_t s_wifi_event_group;   /* FreeRTOS event group to signal when we are connected */
@@ -88,6 +93,15 @@ static void atl_wifi_event_handler(void* handler_args, esp_event_base_t event_ba
         wifi_event_ap_stadisconnected_t* event = (wifi_event_ap_stadisconnected_t*) event_data;
         ESP_LOGI(TAG, "station "MACSTR" leave, AID=%d", MAC2STR(event->mac), event->aid);
     }
+}
+
+/**
+ * @brief Get the wifi mode string object
+ * @param mode 
+ * @return Function enum const* 
+ */
+const char* atl_wifi_get_mode_str(atl_wifi_mode_e mode) {
+    return atl_wifi_mode_str[mode];
 }
 
 /**

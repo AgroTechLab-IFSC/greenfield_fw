@@ -1,10 +1,10 @@
 /**
- * @file atl_wifi.h
+ * @file atl_ota.c
  * @author Robson Costa (robson.costa@ifsc.edu.br)
- * @brief Wifi header.
+ * @brief OTA function.
  * @version 0.1.0
- * @date 2024-03-10 (created)
- * @date 2024-03-11 (updated)
+ * @date 2024-03-14 (created)
+ * @date 2024-03-14 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -14,46 +14,22 @@
  * without warranties or  conditions of any kind</em>, either express or implied. See the License for the specific language governing permissions 
  * and limitations under the License.
  */
-#pragma once
+#include "atl_ota.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define WIFI_CONNECTED_BIT BIT0
-#define WIFI_FAIL_BIT      BIT1
-
-/**
- * @enum    atl_wifi_mode_e
- * @brief   WiFi mode.
- */
-typedef enum {
-    ATL_WIFI_DISABLED,
-    ATL_WIFI_AP_MODE,
-    ATL_WIFI_STA_MODE,   
-} atl_wifi_mode_e;
+/* Constants */
+static const char *TAG = "atl-ota"; /**< Function identification */
+const char *atl_ota_behaviour_str[] = {
+    "ATL_OTA_BEHAVIOUR_DISABLED",
+	"ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY",
+	"ATL_OTA_BEHAVIOU_DOWNLOAD",
+	"ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT",
+};
 
 /**
- * @brief Get the wifi mode string object
- * @param mode 
+ * @brief Get the ota behaviour string object
+ * @param behaviour 
  * @return Function enum const* 
  */
-const char* atl_wifi_get_mode_str(atl_wifi_mode_e mode);
-
-/**
- * @fn atl_wifi_init_softap(void)
- * @brief Initialize WiFi interface in SoftAP mode.
- * @return esp_err_t - If ERR_OK success, otherwise fail.
- */
-esp_err_t atl_wifi_init_softap(void);
-
-/**
- * @fn atl_wifi_init_sta(void)
- * @brief Initialize WiFi interface in STA mode.
- * @return esp_err_t - If ERR_OK success, otherwise fail.
- */
-esp_err_t atl_wifi_init_sta(void);
-
-#ifdef __cplusplus
+const char* atl_ota_get_behaviour_str(atl_ota_behaviour_e behaviour) {
+    return atl_ota_behaviour_str[behaviour];
 }
-#endif

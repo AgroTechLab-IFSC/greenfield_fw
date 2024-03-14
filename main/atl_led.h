@@ -35,6 +35,13 @@ typedef enum {
 } atl_led_behaviour_e;
 
 /**
+ * @brief Get the led behaviour string object
+ * @param behaviour 
+ * @return Function enum const* 
+ */
+const char* atl_led_get_behaviour_str(atl_led_behaviour_e behaviour);
+
+/**
  * @typedef atl_led_rgb_color_t
  * @brief System configuration structure.
  */

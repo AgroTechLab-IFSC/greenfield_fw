@@ -24,7 +24,9 @@
         "esp_tls_crypto.h": "c",
         "atl_mqtt.h": "c",
         "atl_webserver.h": "c",
-        "assert.h": "c"
+        "assert.h": "c",
+        "bitset": "c",
+        "system_error": "c"
     },
     "cmake.configureOnOpen": false
 }

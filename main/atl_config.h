@@ -25,21 +25,12 @@ extern "C" {
 #include <esp_err.h>
 #include <mqtt_client.h>
 #include "atl_led.h"
+#include "atl_ota.h"
 #include "atl_wifi.h"
+#include "atl_mqtt.h"
 
 /* External global variable */
 extern SemaphoreHandle_t atl_config_mutex;
-
-/**
- * @typedef atl_ota_behaviour_e
- * @brief ATL OTA behaviour.
- */
-typedef enum {	
-    ATL_OTA_BEHAVIOUR_DISABLED,
-	ATL_OTA_BEHAVIOUR_VERIFY_NOTIFY,
-	ATL_OTA_BEHAVIOU_DOWNLOAD,
-	ATL_OTA_BEHAVIOU_DOWNLOAD_REBOOT,    
-} atl_ota_behaviour_e;
 
 /**
  * @typedef atl_config_system_t
@@ -81,26 +72,6 @@ typedef struct {
     uint8_t username[32]; /**< WiFi AP SSID.*/
     uint8_t password[64]; /**< WiFi AP password.*/
 } atl_config_webserver_t;
-
-/**
- * @typedef atl_mqtt_mode_e
- * @brief   MQTT mode.
- */
-typedef enum {
-    ATL_MQTT_DISABLED,
-    ATL_MQTT_AGROTECHLAB_CLOUD,
-    ATL_MQTT_THIRD,    
-} atl_mqtt_mode_e;
-
-/**
- * @typedef atl_mqtt_qos_e
- * @brief   MQTT QoS level.
- */
-typedef enum {
-    ATL_MQTT_QOS0,
-    ATL_MQTT_QOS1,
-    ATL_MQTT_QOS2,
-} atl_mqtt_qos_e;
 
 /**
  * @brief atl_mqtt_client_t

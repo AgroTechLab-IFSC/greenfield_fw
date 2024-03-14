@@ -4,7 +4,7 @@
  * @brief MQTT function.
  * @version 0.1.0
  * @date 2024-03-13 (created)
- * @date 2024-03-13 (updated)
+ * @date 2024-03-14 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -29,6 +29,18 @@
 static const char *TAG = "atl-mqtt";
 extern const unsigned char mqtt_cert_start[] asm("_binary_mqtt_cert_pem_start");
 extern const unsigned char mqtt_cert_end[] asm("_binary_mqtt_cert_pem_end");
+const char *atl_mqtt_mode_str[] = {
+    "ATL_MQTT_DISABLED",
+    "ATL_MQTT_AGROTECHLAB_CLOUD",
+    "ATL_MQTT_THIRD",
+};
+const char *atl_mqtt_transport_str[] = {
+    "MQTT_TRANSPORT_UNKNOWN",
+    "MQTT_TRANSPORT_OVER_TCP",
+    "MQTT_TRANSPORT_OVER_SSL",
+    "MQTT_TRANSPORT_OVER_WS",
+    "MQTT_TRANSPORT_OVER_WSS",
+};
 
 /* Global variables */
 esp_mqtt_client_handle_t client;
@@ -878,6 +890,24 @@ static void atl_mqtt5_event_handler(void *handler_args, esp_event_base_t base, i
             ESP_LOGW(TAG, "MQTT_EVENT_UNKNOWN [event_id=%d]", event->event_id);
             break;
     }
+}
+
+/**
+ * @brief Get the MQTT mode string object
+ * @param mode 
+ * @return Function enum const* 
+ */
+const char* atl_mqtt_get_mode_str(atl_mqtt_mode_e mode) {
+    return atl_mqtt_mode_str[mode];
+}
+
+/**
+ * @brief Get the MQTT transport string object
+ * @param transport 
+ * @return Function enum const* 
+ */
+const char* atl_mqtt_get_transport_str(esp_mqtt_transport_t transport) {
+    return atl_mqtt_transport_str[transport];
 }
 
 /**

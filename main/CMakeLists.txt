@@ -9,6 +9,7 @@ idf_component_register(
         "atl_dns.c"
         "atl_webserver.c"
         "atl_mqtt.c"
+        "atl_ota.c"
     INCLUDE_DIRS "."
     EMBED_FILES                         
         "website/favicon.ico"

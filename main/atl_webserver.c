@@ -656,6 +656,169 @@ static const httpd_uri_t conf_wifi_post = {
 };
 
 /**
+ * @fn conf_configuration_get_handler(httpd_req_t *req)
+ * @brief GET handler
+ * @details HTTP GET Handler
+ * @param[in] req - request
+ * @return ESP error code
+ */
+static esp_err_t conf_configuration_get_handler(httpd_req_t *req) {
+    ESP_LOGI(TAG, "Sending conf_cofiguration.html");    
+
+    /* Set response status, type and header */
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Connection", "keep-alive");
+
+    /* Send header chunck */
+    const size_t header_size = (header_end - header_start);
+    httpd_resp_send_chunk(req, (const char *)header_start, header_size);    
+
+    /* Send parameters chunks */            
+    httpd_resp_sendstr_chunk(req, "<div class=\"row\"><br><input class=\"btn_generic\" name=\"btn_get_conf\" \
+                        onclick=\"getConfJSONFile()\" value=\"Get JSON configuration file\"></div>");
+    
+    /* Send footer chunck */
+    const size_t footer_size = (footer_end - footer_start);
+    httpd_resp_send_chunk(req, (const char *)footer_start, footer_size);
+
+    /* Send empty chunk to signal HTTP response completion */
+    httpd_resp_sendstr_chunk(req, NULL);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP GET Handler for configuration webpage
+ */
+static const httpd_uri_t conf_configuration_get = {
+    .uri = "/conf_configuration.html",
+    .method = HTTP_GET,
+    .handler = conf_configuration_get_handler
+};
+
+/**
+ * @fn api_v1_system_conf_handler(httpd_req_t *req)
+ * @brief GET handler
+ * @details HTTP GET Handler
+ * @param[in] req - request
+ * @return ESP error code
+*/
+static esp_err_t api_v1_system_conf_handler(httpd_req_t *req) {    
+    ESP_LOGI(TAG, "Processing /api/v1/system/conf");    
+    
+    /* Make a local copy of GreenField device configuration */
+    atl_config_t atl_config_local;
+    memset(&atl_config_local, 0, sizeof(atl_config_t));
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {        
+        memcpy(&atl_config_local, &atl_config, sizeof(atl_config_t));
+        
+        /* Set response status, type and header */
+        httpd_resp_set_status(req, HTTPD_200);
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_set_hdr(req, "Connection", "keep-alive");
+
+        /* Release configuration mutext */
+        xSemaphoreGive(atl_config_mutex);
+
+        /* Create root JSON object */
+        cJSON *root = cJSON_CreateObject();
+        esp_app_desc_t app_info;
+        const esp_partition_t *partition_info_ptr;
+        partition_info_ptr = esp_ota_get_running_partition();
+        esp_ota_get_partition_description(partition_info_ptr, &app_info);
+        cJSON_AddStringToObject(root, "current_fw_title", app_info.project_name);
+        cJSON_AddStringToObject(root, "current_fw_version", app_info.version);
+        
+        /* Create system JSON object */
+        cJSON *root_system = cJSON_CreateObject();
+        cJSON_AddStringToObject(root_system, "led_behaviour", atl_led_get_behaviour_str(atl_config_local.system.led_behaviour));
+        cJSON_AddItemToObject(root, "system", root_system);
+
+        /* Create ota JSON object */
+        cJSON *root_ota = cJSON_CreateObject();
+        cJSON_AddStringToObject(root_ota, "behaviour", atl_ota_get_behaviour_str(atl_config_local.ota.behaviour));
+        cJSON_AddItemToObject(root, "ota", root_ota);
+        
+        /* Create wifi JSON object */
+        cJSON *root_wifi = cJSON_CreateObject();
+        cJSON_AddStringToObject(root_wifi, "mode", atl_wifi_get_mode_str(atl_config_local.wifi.mode));
+        cJSON_AddStringToObject(root_wifi, "ap_ssid", (const char*)&atl_config_local.wifi.ap_ssid);
+        cJSON_AddStringToObject(root_wifi, "ap_pass", (const char*)&atl_config_local.wifi.ap_pass);
+        cJSON_AddNumberToObject(root_wifi, "ap_channel", atl_config_local.wifi.ap_channel);
+        cJSON_AddNumberToObject(root_wifi, "ap_max_conn", atl_config_local.wifi.ap_max_conn);
+        cJSON_AddStringToObject(root_wifi, "sta_ssid", (const char*)&atl_config_local.wifi.sta_ssid);        
+        cJSON_AddStringToObject(root_wifi, "sta_pass", (const char*)&atl_config_local.wifi.sta_pass);
+        cJSON_AddNumberToObject(root_wifi, "sta_channel", atl_config_local.wifi.sta_channel);
+        cJSON_AddNumberToObject(root_wifi, "sta_max_conn_retry", atl_config_local.wifi.sta_max_conn_retry);
+        cJSON_AddItemToObject(root, "wifi", root_wifi);
+
+        /* Create webserver JSON object */
+        cJSON *root_webserver = cJSON_CreateObject();        
+        cJSON_AddStringToObject(root_webserver, "username", (const char*)&atl_config_local.webserver.username);
+        cJSON_AddStringToObject(root_webserver, "password", (const char*)&atl_config_local.webserver.password);        
+        cJSON_AddItemToObject(root, "webserver", root_webserver);
+
+        /* Create webserver JSON object */
+        cJSON *root_mqtt_client = cJSON_CreateObject();
+        cJSON_AddStringToObject(root_ota, "mode", atl_mqtt_get_mode_str(atl_config_local.mqtt_client.mode));
+        cJSON_AddStringToObject(root_mqtt_client, "broker_address", (const char*)&atl_config_local.mqtt_client.broker_address);
+        cJSON_AddNumberToObject(root_mqtt_client, "broker_port", atl_config_local.mqtt_client.broker_port);        
+        cJSON_AddStringToObject(root_mqtt_client, "transport", atl_mqtt_get_transport_str(atl_config_local.mqtt_client.transport));        
+        cJSON_AddBoolToObject(root_mqtt_client, "disable_cn_check", atl_config_local.mqtt_client.disable_cn_check);
+        cJSON_AddStringToObject(root_mqtt_client, "user", (const char*)&atl_config_local.mqtt_client.user);
+        cJSON_AddStringToObject(root_mqtt_client, "pass", (const char*)&atl_config_local.mqtt_client.pass);
+        cJSON_AddNumberToObject(root_mqtt_client, "qos", atl_config_local.mqtt_client.qos);
+        cJSON_AddItemToObject(root, "mqtt_client", root_mqtt_client);
+
+        /* Put JSON to response message */
+        const char *conf_info = cJSON_Print(root);
+
+        /* Sent response */
+        httpd_resp_sendstr(req, conf_info);
+
+        /* Free objects */                
+        cJSON_Delete(root);
+        free((void *)conf_info);
+
+        return ESP_OK;
+    }
+    else {
+        ESP_LOGE(TAG, "Fail to get configuration mutex!");
+
+        /* Set response status, type and header */
+        httpd_resp_set_status(req, HTTPD_500_INTERNAL_SERVER_ERROR);
+        httpd_resp_set_type(req, "application/json");
+        httpd_resp_set_hdr(req, "Connection", "keep-alive");
+
+        /* Create system JSON object */
+        cJSON *root = cJSON_CreateObject();
+        cJSON_AddStringToObject(root, "error", "Fail to get configuration mutex!");
+
+        /* Put JSON to response message */
+        const char *conf_info = cJSON_Print(root);
+
+        /* Sent response */
+        httpd_resp_sendstr(req, conf_info);
+
+        /* Free objects */                
+        cJSON_Delete(root);
+        free((void *)conf_info);
+
+        return ESP_FAIL;
+    }
+}
+
+/**
+ * @brief HTTP GET API Handler for configuration webpage
+ */
+static const httpd_uri_t api_v1_system_conf = {
+    .uri = "/api/v1/system/conf",
+    .method = HTTP_GET,
+    .handler = api_v1_system_conf_handler
+};
+
+/**
  * @fn conf_fw_get_update_handler(httpd_req_t *req)
  * @brief GET handler
  * @details HTTP GET Handler
@@ -860,7 +1023,7 @@ static esp_err_t conf_fw_update_post_handler(httpd_req_t *req) {
     /* Commit configuration to NVS */
     atl_config_commit_nvs();
     
-    /* Restart X200 device */
+    /* Restart GreenField device */
     ESP_LOGW(TAG, ">>> Rebooting GreenField!");
     atl_led_builtin_blink(10, 100, 255, 69, 0);
     esp_restart();
@@ -1187,8 +1350,8 @@ httpd_handle_t atl_webserver_init(void) {
         // httpd_register_uri_handler(server, &conf_ethernet_get);
         // httpd_register_uri_handler(server, &conf_4g_get);
         // httpd_register_uri_handler(server, &conf_lora_get);
-        // httpd_register_uri_handler(server, &conf_configuration_get);
-        // httpd_register_uri_handler(server, &api_v1_system_conf);
+        httpd_register_uri_handler(server, &conf_configuration_get);
+        httpd_register_uri_handler(server, &api_v1_system_conf);
         // httpd_register_uri_handler(server, &conf_configuration_post);
         httpd_register_uri_handler(server, &conf_fw_update_get);
         httpd_register_uri_handler(server, &conf_fw_update_post);
