@@ -532,6 +532,14 @@ CONFIG_ATL_WIFI_STA_MAX_CONN_RETRY=5
 CONFIG_ATL_WEBSERVER_ADMIN_USER="admin"
 CONFIG_ATL_WEBSERVER_ADMIN_PASS="AgTech4All"
 # end of Webserver Configuration
+
+#
+# MQTT client Configuration
+#
+CONFIG_ATL_MQTT_BROKER_ADDR="agrotechlab.lages.ifsc.edu.br"
+CONFIG_ATL_MQTT_BROKER_PORT=8883
+CONFIG_ATL_MQTT_QOS=0
+# end of MQTT client Configuration
 # end of GreenField (AgTech4All Project)
 
 #

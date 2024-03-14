@@ -23,6 +23,7 @@ extern "C" {
 #include <freertos/semphr.h>
 #include <inttypes.h>
 #include <esp_err.h>
+#include <mqtt_client.h>
 #include "atl_led.h"
 #include "atl_wifi.h"
 
@@ -73,7 +74,7 @@ typedef struct {
 } atl_config_wifi_t;
 
 /**
- * @brief atl_config_webserver_t
+ * @typedef atl_config_webserver_t
  * @brief Webserver configuration structure.
  */
 typedef struct {    
@@ -82,14 +83,50 @@ typedef struct {
 } atl_config_webserver_t;
 
 /**
+ * @typedef atl_mqtt_mode_e
+ * @brief   MQTT mode.
+ */
+typedef enum {
+    ATL_MQTT_DISABLED,
+    ATL_MQTT_AGROTECHLAB_CLOUD,
+    ATL_MQTT_THIRD,    
+} atl_mqtt_mode_e;
+
+/**
+ * @typedef atl_mqtt_qos_e
+ * @brief   MQTT QoS level.
+ */
+typedef enum {
+    ATL_MQTT_QOS0,
+    ATL_MQTT_QOS1,
+    ATL_MQTT_QOS2,
+} atl_mqtt_qos_e;
+
+/**
+ * @brief atl_mqtt_client_t
+ * @brief MQTT client configuration structure.
+ */
+typedef struct {
+    atl_mqtt_mode_e         mode;               /**< MQTT mode.*/
+    uint8_t                 broker_address[64]; /**< MQTT broker address.*/
+    uint16_t                broker_port;        /**< MQTT broker port.*/
+    esp_mqtt_transport_t    transport;          /**< MQTT transport protocol.*/         
+    bool                    disable_cn_check;   /**< Skip certificate Common Name check (for self-signed certificates).*/
+    uint8_t                 user[32];           /**< MQTT username.*/
+    uint8_t                 pass[64];           /**< MQTT password.*/
+    atl_mqtt_qos_e          qos;                /**< MQTT QoS level.*/
+} atl_mqtt_client_t;
+
+/**
  * @typedef atl_config_t
  * @brief Configuration structure.
  */
 typedef struct {
-    atl_config_system_t     system;     /**< System configuration. */
-    atl_config_ota_t        ota;        /**< OTA configuration. */
-    atl_config_wifi_t       wifi;       /**< WiFi configuration. */
-    atl_config_webserver_t  webserver;  /**< Webserver configuration. */
+    atl_config_system_t     system;         /**< System configuration. */
+    atl_config_ota_t        ota;            /**< OTA configuration. */
+    atl_config_wifi_t       wifi;           /**< WiFi configuration. */
+    atl_config_webserver_t  webserver;      /**< Webserver configuration. */
+    atl_mqtt_client_t       mqtt_client;    /**< MQTT client configuration. */
 } atl_config_t;
 
 /**

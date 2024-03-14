@@ -58,6 +58,16 @@ static void atl_config_create_default(void) {
     /** Creates default Webserver configuration **/
     strncpy((char*)&atl_config.webserver.username, CONFIG_ATL_WEBSERVER_ADMIN_USER, sizeof(atl_config.webserver.username));
     strncpy((char*)&atl_config.webserver.password, CONFIG_ATL_WEBSERVER_ADMIN_PASS, sizeof(atl_config.webserver.password));
+
+    /** Creates default MQTT client configuration **/
+    atl_config.mqtt_client.mode = ATL_MQTT_AGROTECHLAB_CLOUD; 
+    strncpy((char*)&atl_config.mqtt_client.broker_address, CONFIG_ATL_MQTT_BROKER_ADDR, sizeof(atl_config.mqtt_client.broker_address));
+    atl_config.mqtt_client.broker_port = CONFIG_ATL_MQTT_BROKER_PORT;
+    atl_config.mqtt_client.transport = MQTT_TRANSPORT_OVER_SSL;
+    atl_config.mqtt_client.disable_cn_check = true;
+    strncpy((char*)&atl_config.mqtt_client.user, (char*)&atl_config.wifi.ap_ssid, sizeof(atl_config.mqtt_client.user));
+    strncpy((char*)&atl_config.mqtt_client.pass, (char*)&atl_config.wifi.ap_ssid, sizeof(atl_config.mqtt_client.pass));
+    atl_config.mqtt_client.qos = CONFIG_ATL_MQTT_QOS;
 }
 
 /**

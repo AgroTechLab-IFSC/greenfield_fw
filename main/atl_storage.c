@@ -31,7 +31,7 @@ static const char *TAG = "atl-storage";    /**< Function identification */
  * @return esp_err_t - If ERR_OK success. 
  */
 esp_err_t atl_storage_init(void) {
-    nvs_flash_erase();
+    // nvs_flash_erase();
     ESP_LOGI(TAG, "Starting NVS (Non-Volatile Storage)");
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {

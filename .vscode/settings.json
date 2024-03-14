@@ -21,7 +21,10 @@
         "event_groups.h": "c",
         "atl_wifi.h": "c",
         "string.h": "c",
-        "esp_tls_crypto.h": "c"
+        "esp_tls_crypto.h": "c",
+        "atl_mqtt.h": "c",
+        "atl_webserver.h": "c",
+        "assert.h": "c"
     },
     "cmake.configureOnOpen": false
 }

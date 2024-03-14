@@ -8,6 +8,7 @@ idf_component_register(
         "atl_wifi.c"
         "atl_dns.c"
         "atl_webserver.c"
+        "atl_mqtt.c"
     INCLUDE_DIRS "."
     EMBED_FILES                         
         "website/favicon.ico"
@@ -17,4 +18,5 @@ idf_component_register(
         "website/footer.html"        
     EMBED_TXTFILES
         "certs/cacert.pem"
-        "certs/prvtkey.pem")
+        "certs/prvtkey.pem"
+        "certs/mqtt_cert.pem")

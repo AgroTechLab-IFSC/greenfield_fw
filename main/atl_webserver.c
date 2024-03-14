@@ -275,6 +275,267 @@ static esp_err_t conf_wifi_get_handler(httpd_req_t *req) {
 }
 
 /**
+ * @fn conf_mqtt_get_handler(httpd_req_t *req)
+ * @brief GET handler for MQTT Client configuration webpage
+ * @details HTTP GET handler for MQTT Client configuration webpage
+ * @param[in] req - request
+ * @return ESP error code
+*/
+static esp_err_t conf_mqtt_get_handler(httpd_req_t *req) {
+    char resp_val[65];
+    ESP_LOGD(TAG, "Sending conf_mqtt.html");
+
+    /* Set response status, type and header */
+    httpd_resp_set_status(req, HTTPD_200);
+    httpd_resp_set_type(req, "text/html");
+    httpd_resp_set_hdr(req, "Connection", "keep-alive");
+
+    /* Send header chunck */
+    const size_t header_size = (header_end - header_start);
+    httpd_resp_send_chunk(req, (const char *)header_start, header_size);
+
+    /* Make a local copy of MQTT client configuration */
+    atl_mqtt_client_t mqtt_client_config;
+    memset(&mqtt_client_config, 0, sizeof(atl_mqtt_client_t));
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&mqtt_client_config, &atl_config.mqtt_client, sizeof(atl_mqtt_client_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+    
+    /* Send article chunks */    
+    httpd_resp_sendstr_chunk(req, "<form action=\"conf_mqtt_post.html\" method=\"post\"><div class=\"row\"> \
+                                      <table><tr><th>Parameter</th><th>Value</th></tr> \
+                                      <tr><td>MQTT Mode</td><td><select name=\"mqtt_mode\" id=\"mqtt_mode\">");
+    if (mqtt_client_config.mode == ATL_MQTT_DISABLED) {
+        httpd_resp_sendstr_chunk(req, "<option selected value=\"ATL_MQTT_DISABLED\">MQTT Client Disabled</option> \
+                                       <option value=\"ATL_MQTT_AGROTECHLAB_CLOUD\">AgroTechLab Cloud</option> \
+                                       <option value=\"ATL_MQTT_THIRD\">Third Server</option> \
+                                       </select></td></tr>");
+    } else if (mqtt_client_config.mode == ATL_MQTT_AGROTECHLAB_CLOUD) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"ATL_MQTT_DISABLED\">MQTT Client Disabled</option> \
+                                       <option selected value=\"ATL_MQTT_AGROTECHLAB_CLOUD\">AgroTechLab Cloud</option> \
+                                       <option value=\"ATL_MQTT_THIRD\">Third Server</option> \
+                                       </select></td></tr>");
+    } else if (mqtt_client_config.mode == ATL_MQTT_THIRD) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"ATL_MQTT_DISABLED\">MQTT Client Disabled</option> \
+                                       <option value=\"ATL_MQTT_AGROTECHLAB_CLOUD\">AgroTechLab Cloud</option> \
+                                       <option selected value=\"ATL_MQTT_THIRD\">Third Server</option> \
+                                       </select></td></tr>");
+    }    
+    httpd_resp_sendstr_chunk(req, "<tr><td>MQTT Server Address</td><td><input type=\"text\" id=\"mqtt_srv_addr\" name=\"mqtt_srv_addr\" value=\"");
+    sprintf(resp_val, "%s", mqtt_client_config.broker_address);
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req, "\"></td></tr><tr><td>MQTT Server Port</td><td><input type=\"number\" id=\"mqtt_srv_port\" name=\"mqtt_srv_port\" value=\"");
+    sprintf(resp_val, "%d", mqtt_client_config.broker_port);
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req, "\"></td></tr><tr><td>Transport</td><td><select name=\"mqtt_transport\" id=\"mqtt_transport\">");
+    if (mqtt_client_config.transport == MQTT_TRANSPORT_OVER_TCP) {
+        httpd_resp_sendstr_chunk(req, "<option selected value=\"MQTT_TRANSPORT_OVER_TCP\">MQTT (TCP)</option> \
+                                       <option value=\"MQTT_TRANSPORT_OVER_SSL\">MQTTS (TCP+TLS)</option></select></td></tr>");
+    } else if (mqtt_client_config.transport == MQTT_TRANSPORT_OVER_SSL) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"MQTT_TRANSPORT_OVER_TCP\">MQTT (TCP)</option> \
+                                       <option selected value=\"MQTT_TRANSPORT_OVER_SSL\">MQTTS (TCP+TLS)</option></select></td></tr>");
+    }
+    httpd_resp_sendstr_chunk(req, "<tr><td>Disable Common Name (CN) check</td><td><select name=\"mqtt_disable_cn_check\" id=\"mqtt_disable_cn_check\">");
+    if (mqtt_client_config.disable_cn_check == true) {
+        httpd_resp_sendstr_chunk(req, "<option selected value=\"true\">true</option> \
+                                       <option value=\"false\">false</option></select></td></tr>");
+    } else {
+        httpd_resp_sendstr_chunk(req, "<option value=\"true\">true</option> \
+                                       <option selected value=\"false\">false</option></select></td></tr>");
+    }    
+    httpd_resp_sendstr_chunk(req, "<tr><td>Username</td><td><input type=\"text\" id=\"mqtt_username\" name=\"mqtt_username\" value=\"");
+    sprintf(resp_val, "%s", mqtt_client_config.user);
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req, "\"></td></tr><tr><td>Password</td><td><input type=\"password\" id=\"mqtt_pass\" name=\"mqtt_pass\" value=\"");
+    sprintf(resp_val, "%s", mqtt_client_config.pass);
+    httpd_resp_sendstr_chunk(req, resp_val);
+    httpd_resp_sendstr_chunk(req, "\"></td></tr><tr><td>QoS</td><td><select name=\"mqtt_qos\" id=\"mqtt_qos\">");
+    if (mqtt_client_config.qos == ATL_MQTT_QOS0) {
+        httpd_resp_sendstr_chunk(req, "<option selected value=\"ATL_MQTT_QOS0\">At most once (QoS 0)</option> \
+                                       <option value=\"ATL_MQTT_QOS1\">At least once (QoS 1)</option> \
+                                       <option value=\"ATL_MQTT_QOS2\">Exactly once (QoS 2)</option> \
+                                       </select></td></tr>");
+    } else if (mqtt_client_config.qos == ATL_MQTT_QOS1) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"ATL_MQTT_QOS0\">At most once (QoS 0)</option> \
+                                       <option selected value=\"ATL_MQTT_QOS1\">At least once (QoS 1)</option> \
+                                       <option value=\"ATL_MQTT_QOS2\">Exactly once (QoS 2)</option> \
+                                       </select></td></tr>");
+    } else if (mqtt_client_config.qos == ATL_MQTT_QOS2) {
+        httpd_resp_sendstr_chunk(req, "<option value=\"ATL_MQTT_QOS0\">At most once (QoS 0)</option> \
+                                       <option value=\"ATL_MQTT_QOS1\">At least once (QoS 1)</option> \
+                                       <option selected value=\"ATL_MQTT_QOS2\">Exactly once (QoS 2)</option> \
+                                       </select></td></tr>");
+    }
+    httpd_resp_sendstr_chunk(req, "</table><br><div class=\"reboot-msg\" id=\"delayMsg\"></div>");    
+
+    /* Send button chunks */    
+    httpd_resp_sendstr_chunk(req, "<br><input class=\"btn_generic\" name=\"btn_save_reboot\" type=\"submit\" \
+                                    onclick=\"delayRedirect()\" value=\"Save & Reboot\"></div></form>");     
+
+    /* Send footer chunck */
+    const size_t footer_size = (footer_end - footer_start);
+    httpd_resp_send_chunk(req, (const char *)footer_start, footer_size);
+
+    /* Send empty chunk to signal HTTP response completion */
+    httpd_resp_sendstr_chunk(req, NULL);
+
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP GET Handler for MQTT client webpage
+ */
+static const httpd_uri_t conf_mqtt_get = {
+    .uri = "/conf_mqtt.html",
+    .method = HTTP_GET,
+    .handler = conf_mqtt_get_handler
+};
+
+/**
+ * @fn conf_mqtt_update_handler(httpd_req_t *req)
+ * @brief POST handler for MQTT Client configuration webpage
+ * @details HTTP POST handler for MQTT Client configuration webpage
+ * @param[in] req - request
+ * @return ESP error code
+*/
+static esp_err_t conf_mqtt_post_handler(httpd_req_t *req) {
+    ESP_LOGD(TAG, "Processing POST conf_mqtt_post");
+
+    /* Allocate memory to process request */
+    int    ret;
+    size_t off = 0;
+    char*  buf = calloc(1, req->content_len + 1);
+    if (!buf) {
+        ESP_LOGE(TAG, "Failed to allocate memory of %d bytes!", req->content_len + 1);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    /* Receive all data */
+    while (off < req->content_len) {
+        /* Read data received in the request */
+        ret = httpd_req_recv(req, buf + off, req->content_len - off);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+                httpd_resp_send_408(req);
+            }
+            free(buf);
+            return ESP_FAIL;
+        }
+        off += ret;
+    }
+    buf[off] = '\0';
+
+    /* Make a local copy of MQTT client configuration */
+    atl_mqtt_client_t mqtt_client_config;
+    memset(&mqtt_client_config, 0, sizeof(atl_mqtt_client_t));
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&mqtt_client_config, &atl_config.mqtt_client, sizeof(atl_mqtt_client_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+
+    /* Search for custom header field */
+    char* token;
+    char* key;
+    char* value;
+    int token_len, value_len;
+    token = strtok(buf, "&");
+    while (token) {
+        token_len = strlen(token);
+        value = strstr(token, "=") + 1;
+        value_len = strlen(value);
+        key = calloc(1, (token_len - value_len));
+        if (!key) {
+            ESP_LOGE(TAG, "Failed to allocate memory!");
+            httpd_resp_send_500(req);
+            return ESP_FAIL;
+        }
+        memcpy(key, token, (token_len - value_len - 1));
+        if (strcmp(key, "mqtt_mode") == 0) {
+            if (strcmp(value, "ATL_MQTT_DISABLED") == 0) {
+                mqtt_client_config.mode = ATL_MQTT_DISABLED;
+            } else if (strcmp(value, "ATL_MQTT_AGROTECHLAB_CLOUD") == 0) {
+                mqtt_client_config.mode = ATL_MQTT_AGROTECHLAB_CLOUD;
+            } else if (strcmp(value, "ATL_MQTT_THIRD") == 0) {
+                mqtt_client_config.mode = ATL_MQTT_THIRD;
+            }            
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "mqtt_srv_addr") == 0) {
+            strncpy((char*)&mqtt_client_config.broker_address, value, sizeof(mqtt_client_config.broker_address));
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "mqtt_srv_port") == 0) {
+            mqtt_client_config.broker_port = atoi(value);
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "mqtt_transport") == 0) {
+            if (strcmp(value, "MQTT_TRANSPORT_OVER_TCP") == 0) {
+                mqtt_client_config.transport = MQTT_TRANSPORT_OVER_TCP;
+            } else if (strcmp(value, "MQTT_TRANSPORT_OVER_SSL") == 0) {
+                mqtt_client_config.transport = MQTT_TRANSPORT_OVER_SSL;
+            }            
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "mqtt_disable_cn_check") == 0) {
+            if (strcmp(value, "true") == 0) {
+                mqtt_client_config.disable_cn_check = true;
+            } else if (strcmp(value, "false") == 0) {
+                mqtt_client_config.disable_cn_check = false;
+            }
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "mqtt_username") == 0) {
+            strncpy((char*)&mqtt_client_config.user, value, sizeof(mqtt_client_config.user));
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "mqtt_pass") == 0) {
+            strncpy((char*)&mqtt_client_config.pass, value, sizeof(mqtt_client_config.pass));
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        } else if (strcmp(key, "mqtt_qos") == 0) {
+            if (strcmp(value, "ATL_MQTT_QOS0") == 0) {
+                mqtt_client_config.qos = ATL_MQTT_QOS0;
+            } else if (strcmp(value, "ATL_MQTT_QOS1") == 0) {
+                mqtt_client_config.qos = ATL_MQTT_QOS1;
+            } else if (strcmp(value, "ATL_MQTT_QOS2") == 0) {
+                mqtt_client_config.qos = ATL_MQTT_QOS2;
+            }
+            ESP_LOGI(TAG, "Updating [%s:%s]", key,  value);
+        }
+        free(key);
+        token = strtok(NULL, "&");
+    }
+    
+    /* Update current MQTT client configuration */        
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&atl_config.mqtt_client, &mqtt_client_config, sizeof(atl_mqtt_client_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+    }
+
+    /* Commit configuration to NVS */
+    atl_config_commit_nvs();    
+
+    /* Restart X200 device */
+    ESP_LOGW(TAG, ">>> Rebooting GreenField!");
+    atl_led_builtin_blink(10, 100, 255, 69, 0);
+    esp_restart();
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP POST Handler for MQTT client webpage
+ */
+static const httpd_uri_t conf_mqtt_post = {
+    .uri = "/conf_mqtt_post.html",
+    .method = HTTP_POST,
+    .handler = conf_mqtt_post_handler
+};
+
+/**
  * @brief HTTP GET Handler for wifi webpage
  */
 static const httpd_uri_t conf_wifi_get = {
@@ -919,8 +1180,8 @@ httpd_handle_t atl_webserver_init(void) {
         httpd_register_uri_handler(server, &js);
         httpd_register_err_handler(server, HTTPD_404_NOT_FOUND, http_404_error_handler);        
         httpd_register_uri_handler(server, &home_get);        
-        // httpd_register_uri_handler(server, &conf_mqtt_get);
-        // httpd_register_uri_handler(server, &conf_mqtt_post);        
+        httpd_register_uri_handler(server, &conf_mqtt_get);
+        httpd_register_uri_handler(server, &conf_mqtt_post);        
         httpd_register_uri_handler(server, &conf_wifi_get);
         httpd_register_uri_handler(server, &conf_wifi_post);
         // httpd_register_uri_handler(server, &conf_ethernet_get);

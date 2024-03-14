@@ -27,6 +27,7 @@
 #include "atl_wifi.h"
 #include "atl_dns.h"
 #include "atl_webserver.h"
+#include "atl_mqtt.h"
 
 /* Constants */
 static const char *TAG = "atl-main";
@@ -68,10 +69,12 @@ void app_main(void) {
             /* Initialize WiFi in STA mode */
             atl_wifi_init_sta();
 
+            /* Initialize MQTT client */
+            atl_mqtt_init();
         }
 
         /* Initialize webserver (HTTPS) */
-        atl_webserver_init();
+        atl_webserver_init();        
     }
 
     /* Update serial interface output */

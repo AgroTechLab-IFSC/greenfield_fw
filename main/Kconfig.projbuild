@@ -70,4 +70,26 @@ menu "GreenField (AgTech4All Project)"
             help
                 Default administrator password at GreenField webserver.        
     endmenu
+
+    menu "MQTT client Configuration"
+        config ATL_MQTT_BROKER_ADDR
+            string "MQTT broker address"
+            default "agrotechlab.lages.ifsc.edu.br"
+            help
+                Default broker address.
+            
+        config ATL_MQTT_BROKER_PORT
+            int "MQTT broker port"
+            range 1 65535
+            default 8883
+            help
+                Default broker port.
+        
+        config ATL_MQTT_QOS
+            int "MQTT QoS"
+            range 0 2
+            default 0
+            help
+                Default QoS.
+    endmenu
 endmenu
