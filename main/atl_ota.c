@@ -14,6 +14,8 @@
  * without warranties or  conditions of any kind</em>, either express or implied. See the License for the specific language governing permissions 
  * and limitations under the License.
  */
+#include <stdint.h>
+#include <string.h>
 #include "atl_ota.h"
 
 /* Constants */
@@ -32,4 +34,21 @@ const char *atl_ota_behaviour_str[] = {
  */
 const char* atl_ota_get_behaviour_str(atl_ota_behaviour_e behaviour) {
     return atl_ota_behaviour_str[behaviour];
+}
+
+/**
+ * @brief Get the ota behaviour string object
+ * @param behaviour_str 
+ * @return Function enum
+ */
+atl_ota_behaviour_e atl_ota_get_behaviour(char* behaviour_str) {
+    uint8_t i = 0;
+    while (atl_ota_behaviour_str[i] != NULL) {
+        if (strcmp(behaviour_str, atl_ota_behaviour_str[i]) == 0) {
+            return i;
+        } else {
+            i++;
+        }
+    }
+    return 255;
 }

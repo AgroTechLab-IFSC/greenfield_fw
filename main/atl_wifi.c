@@ -39,6 +39,23 @@ static EventGroupHandle_t s_wifi_event_group;   /* FreeRTOS event group to signa
 extern atl_config_t atl_config;
 
 /**
+ * @brief Get the wifi mode enum
+ * @param mode_str 
+ * @return Function enum
+ */
+atl_wifi_mode_e atl_wifi_get_mode(char* mode_str) {
+    uint8_t i = 0;
+    while (atl_wifi_mode_str[i] != NULL) {
+        if (strcmp(mode_str, atl_wifi_mode_str[i]) == 0) {
+            return i;
+        } else {
+            i++;
+        }
+    }
+    return 255;
+}
+
+/**
  * @fn atl_wifi_event_handler(void* handler_args, esp_event_base_t event_base, int32_t event_id, void* event_data)
  * @brief Event handler registered to receive WiFi events.
  * @details This function is called by the WiFi client event loop.

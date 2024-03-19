@@ -26,7 +26,11 @@
         "atl_webserver.h": "c",
         "assert.h": "c",
         "bitset": "c",
-        "system_error": "c"
+        "system_error": "c",
+        "string": "c",
+        "format": "c",
+        "cstring": "c",
+        "typeinfo": "c"
     },
     "cmake.configureOnOpen": false
 }

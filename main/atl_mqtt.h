@@ -48,11 +48,25 @@ typedef enum {
 const char* atl_mqtt_get_mode_str(atl_mqtt_mode_e mode);
 
 /**
+ * @brief Get the MQTT mode enum
+ * @param mode_str 
+ * @return Function enum
+ */
+atl_mqtt_mode_e atl_mqtt_get_mode(char* mode_str);
+
+/**
  * @brief Get the MQTT transport string object
  * @param transport 
  * @return Function enum const* 
  */
 const char* atl_mqtt_get_transport_str(esp_mqtt_transport_t transport);
+
+/**
+ * @brief Get the MQTT transport enum
+ * @param transport_str 
+ * @return Function enum
+ */
+esp_mqtt_transport_t atl_mqtt_get_transport(char* transport_str);
 
 /**
  * @fn atl_mqtt_init(void)

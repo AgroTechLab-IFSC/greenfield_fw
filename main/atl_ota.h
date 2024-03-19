@@ -38,6 +38,13 @@ typedef enum {
  */
 const char* atl_ota_get_behaviour_str(atl_ota_behaviour_e behaviour);
 
+/**
+ * @brief Get the ota behaviour string object
+ * @param behaviour_str 
+ * @return Function enum
+ */
+atl_ota_behaviour_e atl_ota_get_behaviour(char* behaviour_str);
+
 #ifdef __cplusplus
 }
 #endif

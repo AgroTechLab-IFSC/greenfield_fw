@@ -34,6 +34,7 @@ const char *atl_mqtt_mode_str[] = {
     "ATL_MQTT_AGROTECHLAB_CLOUD",
     "ATL_MQTT_THIRD",
 };
+
 const char *atl_mqtt_transport_str[] = {
     "MQTT_TRANSPORT_UNKNOWN",
     "MQTT_TRANSPORT_OVER_TCP",
@@ -73,6 +74,40 @@ static esp_mqtt5_subscribe_property_config_t subscribe_property = {
     //.is_share_subscribe = true,
     //.share_name = "group1",
 };
+
+/**
+ * @brief Get the MQTT mode enum
+ * @param mode_str 
+ * @return Function enum
+ */
+atl_mqtt_mode_e atl_mqtt_get_mode(char* mode_str) {
+    uint8_t i = 0;
+    while (atl_mqtt_mode_str[i] != NULL) {
+        if (strcmp(mode_str, atl_mqtt_mode_str[i]) == 0) {
+            return i;
+        } else {
+            i++;
+        }
+    }
+    return 255;
+}
+
+/**
+ * @brief Get the MQTT transport enum
+ * @param transport_str 
+ * @return Function enum
+ */
+esp_mqtt_transport_t atl_mqtt_get_transport(char* transport_str) {
+    uint8_t i = 0;
+    while (atl_mqtt_transport_str[i] != NULL) {
+        if (strcmp(transport_str, atl_mqtt_transport_str[i]) == 0) {
+            return i;
+        } else {
+            i++;
+        }
+    }
+    return 255;
+}
 
 /**
  * @brief Event handler registered to receive MQTT events

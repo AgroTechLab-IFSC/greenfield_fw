@@ -4,7 +4,7 @@
  * @brief Webserver function.
  * @version 0.1.0
  * @date 2024-03-11 (created)
- * @date 2024-03-11 (updated)
+ * @date 2024-03-18 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -247,14 +247,14 @@ static esp_err_t conf_wifi_get_handler(httpd_req_t *req) {
     }
     
     /* Process station BSSID name */
-    httpd_resp_sendstr_chunk(req, "<tr><td><label for=\"bssid\">Network (BSSID):</label></td> \
+    httpd_resp_sendstr_chunk(req, "<tr><td>Network (BSSID):</td> \
                                     <td><input type=\"text\" id=\"bssid\" name=\"bssid\" value=\"");        
     sprintf(resp_val, "%s", wifi_config.sta_ssid);
     httpd_resp_sendstr_chunk(req, resp_val);
     httpd_resp_sendstr_chunk(req, "\"></td></tr>");
 
     /* Process station BSSID password */
-    httpd_resp_sendstr_chunk(req, "<tr><td><label for=\"pass\">Password:</label></td> \
+    httpd_resp_sendstr_chunk(req, "<tr><td>Password:</td> \
                                    <td><input type=\"password\" id=\"pass\" name=\"pass\" value=\"");           
     sprintf(resp_val, "%s", wifi_config.sta_pass);          
     httpd_resp_sendstr_chunk(req, resp_val);
@@ -674,10 +674,20 @@ static esp_err_t conf_configuration_get_handler(httpd_req_t *req) {
     const size_t header_size = (header_end - header_start);
     httpd_resp_send_chunk(req, (const char *)header_start, header_size);    
 
-    /* Send parameters chunks */            
-    httpd_resp_sendstr_chunk(req, "<div class=\"row\"><br><input class=\"btn_generic\" name=\"btn_get_conf\" \
-                        onclick=\"getConfJSONFile()\" value=\"Get JSON configuration file\"></div>");
+    /* Send download session chunks */
+    httpd_resp_sendstr_chunk(req, "<div class=\"row\" style=\"border: 1px solid #223904\"> \
+                        <p>Download GreenField configuration file (JSON)</p><input class=\"btn_generic\" name=\"btn_get_conf\" \
+                        onclick=\"getConfJSONFile()\" value=\"Download\"></div><br><br>");
+
+    /* Send upload session chunks */
+    httpd_resp_sendstr_chunk(req, "<div class=\"row\" style=\"border: 1px solid #223904\"> \
+                        <p>Upload GreenField configuration file (JSON)</p><form action=\"/api/v1/system/set/conf\" method=\"post\" enctype=\"multipart/form-data\"> \
+                        <input id=\"file\" name=\"file\" type=\"file\" accept=\".json\" />");
     
+    /* Send button chunks */
+    httpd_resp_sendstr_chunk(req, "<br><input class=\"btn_generic\" name=\"btn_set_conf\" type=\"submit\" \
+                                    onclick=\"uploadFile()\" value=\"Upload\"></form></div>");    
+
     /* Send footer chunck */
     const size_t footer_size = (footer_end - footer_start);
     httpd_resp_send_chunk(req, (const char *)footer_start, footer_size);
@@ -698,14 +708,14 @@ static const httpd_uri_t conf_configuration_get = {
 };
 
 /**
- * @fn api_v1_system_conf_handler(httpd_req_t *req)
+ * @fn api_v1_system_get_conf_handler(httpd_req_t *req)
  * @brief GET handler
  * @details HTTP GET Handler
  * @param[in] req - request
  * @return ESP error code
 */
-static esp_err_t api_v1_system_conf_handler(httpd_req_t *req) {    
-    ESP_LOGI(TAG, "Processing /api/v1/system/conf");    
+static esp_err_t api_v1_system_get_conf_handler(httpd_req_t *req) {    
+    ESP_LOGI(TAG, "Processing /api/v1/system/get/conf");    
     
     /* Make a local copy of GreenField device configuration */
     atl_config_t atl_config_local;
@@ -761,7 +771,7 @@ static esp_err_t api_v1_system_conf_handler(httpd_req_t *req) {
 
         /* Create webserver JSON object */
         cJSON *root_mqtt_client = cJSON_CreateObject();
-        cJSON_AddStringToObject(root_ota, "mode", atl_mqtt_get_mode_str(atl_config_local.mqtt_client.mode));
+        cJSON_AddStringToObject(root_mqtt_client, "mode", atl_mqtt_get_mode_str(atl_config_local.mqtt_client.mode));
         cJSON_AddStringToObject(root_mqtt_client, "broker_address", (const char*)&atl_config_local.mqtt_client.broker_address);
         cJSON_AddNumberToObject(root_mqtt_client, "broker_port", atl_config_local.mqtt_client.broker_port);        
         cJSON_AddStringToObject(root_mqtt_client, "transport", atl_mqtt_get_transport_str(atl_config_local.mqtt_client.transport));        
@@ -812,10 +822,214 @@ static esp_err_t api_v1_system_conf_handler(httpd_req_t *req) {
 /**
  * @brief HTTP GET API Handler for configuration webpage
  */
-static const httpd_uri_t api_v1_system_conf = {
-    .uri = "/api/v1/system/conf",
+static const httpd_uri_t api_v1_system_get_conf = {
+    .uri = "/api/v1/system/get/conf",
     .method = HTTP_GET,
-    .handler = api_v1_system_conf_handler
+    .handler = api_v1_system_get_conf_handler
+};
+
+/**
+ * @fn api_v1_system_set_conf_handler(httpd_req_t *req)
+ * @brief POST handler
+ * @details HTTP POST Handler
+ * @param[in] req - request
+ * @return ESP error code
+*/
+static esp_err_t api_v1_system_set_conf_handler(httpd_req_t *req) {    
+    ESP_LOGI(TAG, "Processing /api/v1/system/set/conf");
+    
+    /* Allocate memory to process request */
+    int    ret;
+    size_t off = 0;
+    char*  buf = calloc(1, req->content_len + 1);
+    if (!buf) {
+        ESP_LOGE(TAG, "Failed to allocate memory of %d bytes!", req->content_len + 1);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    /* Receive all data */
+    while (off < req->content_len) {
+        /* Read data received in the request */
+        ret = httpd_req_recv(req, buf + off, req->content_len - off);
+        if (ret <= 0) {
+            if (ret == HTTPD_SOCK_ERR_TIMEOUT) {
+                httpd_resp_send_408(req);
+            }
+            free(buf);
+            return ESP_FAIL;
+        }
+        off += ret;
+    }
+    buf[off] = '\0';
+
+    /* Get JSON begin from HTTP */
+    char* json_begin = strstr(buf, "{");
+
+    /* Make a local version of configuration */
+    atl_config_t config_local;
+    memset(&config_local, 0, sizeof(atl_config_t));        
+
+    /* Parse JSON file */
+    cJSON *json = cJSON_ParseWithLength(json_begin, strlen(json_begin));
+    if (json == NULL) {
+        const char *error_ptr = cJSON_GetErrorPtr();
+        if (error_ptr != NULL) {
+            ESP_LOGE(TAG, "Error before: %s\n", error_ptr);
+        }
+        cJSON_Delete(json);
+        free(buf);
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    } else {
+        ESP_LOGI(TAG, "Parsing JSON configuration file...");
+        
+        /* Get SYSTEM parameters */
+        cJSON *root = cJSON_GetObjectItem(json, "system");
+        if (root != NULL) {
+            cJSON *led_behaviour = cJSON_GetObjectItem(root, "led_behaviour");
+            if (led_behaviour != NULL) {
+                config_local.system.led_behaviour = atl_led_get_behaviour(led_behaviour->valuestring);
+            }
+        }
+
+        /* Get OTA parameters */
+        root = cJSON_GetObjectItem(json, "ota");
+        if (root != NULL) {
+            cJSON *behaviour = cJSON_GetObjectItem(root, "behaviour");
+            if (behaviour != NULL) {
+                config_local.ota.behaviour = atl_ota_get_behaviour(behaviour->valuestring);
+            }
+        }
+
+        /* Get WIFI parameters */
+        root = cJSON_GetObjectItem(json, "wifi");
+        if (root != NULL) {
+            cJSON *mode = cJSON_GetObjectItem(root, "mode");
+            if (mode != NULL) {
+                config_local.wifi.mode = atl_wifi_get_mode(mode->valuestring);
+            }
+            cJSON *ap_ssid = cJSON_GetObjectItem(root, "ap_ssid");
+            if (ap_ssid != NULL) {
+                strncpy((char*)&config_local.wifi.ap_ssid, ap_ssid->valuestring, sizeof(config_local.wifi.ap_ssid));
+            }
+            cJSON *ap_pass = cJSON_GetObjectItem(root, "ap_pass");
+            if (ap_pass != NULL) {
+                strncpy((char*)&config_local.wifi.ap_pass, ap_pass->valuestring, sizeof(config_local.wifi.ap_pass));
+            }
+            cJSON *ap_channel = cJSON_GetObjectItem(root, "ap_channel");
+            if (ap_channel != NULL) {
+                config_local.wifi.ap_channel = ap_channel->valueint;
+            }
+            cJSON *ap_max_conn = cJSON_GetObjectItem(root, "ap_max_conn");
+            if (ap_max_conn != NULL) {
+                config_local.wifi.ap_max_conn = ap_max_conn->valueint;
+            }
+            cJSON *sta_ssid = cJSON_GetObjectItem(root, "sta_ssid");
+            if (sta_ssid != NULL) {
+                strncpy((char*)&config_local.wifi.sta_ssid, sta_ssid->valuestring, sizeof(config_local.wifi.sta_ssid));
+            }
+            cJSON *sta_pass = cJSON_GetObjectItem(root, "sta_pass");
+            if (sta_pass != NULL) {
+                strncpy((char*)&config_local.wifi.sta_pass, sta_pass->valuestring, sizeof(config_local.wifi.sta_pass));
+            }
+            cJSON *sta_channel = cJSON_GetObjectItem(root, "sta_channel");
+            if (sta_channel != NULL) {
+                config_local.wifi.sta_channel = sta_channel->valueint;
+            }
+            cJSON *sta_max_conn_retry = cJSON_GetObjectItem(root, "sta_max_conn_retry");
+            if (sta_max_conn_retry != NULL) {
+                config_local.wifi.sta_max_conn_retry = sta_max_conn_retry->valueint;
+            }
+        }
+        root = cJSON_GetObjectItem(json, "webserver");
+        if (root != NULL) {
+            cJSON *username = cJSON_GetObjectItem(root, "username");
+            if (username != NULL) {
+                strncpy((char*)&config_local.webserver.username, username->valuestring, sizeof(config_local.webserver.username));
+            }
+            cJSON *password = cJSON_GetObjectItem(root, "password");
+            if (password != NULL) {
+                strncpy((char*)&config_local.webserver.password, password->valuestring, sizeof(config_local.webserver.password));
+            }
+        }
+        root = cJSON_GetObjectItem(json, "mqtt_client");
+        if (root != NULL) {
+            cJSON *mode = cJSON_GetObjectItem(root, "mode");
+            if (mode != NULL) {
+                config_local.mqtt_client.mode = atl_mqtt_get_mode(mode->valuestring);
+            }
+            cJSON *broker_address = cJSON_GetObjectItem(root, "broker_address");
+            if (broker_address != NULL) {
+                strncpy((char*)&config_local.mqtt_client.broker_address, broker_address->valuestring, sizeof(config_local.mqtt_client.broker_address));
+            }
+            cJSON *broker_port = cJSON_GetObjectItem(root, "broker_port");
+            if (broker_port != NULL) {
+                config_local.mqtt_client.broker_port = broker_port->valueint;
+            }
+            cJSON *transport = cJSON_GetObjectItem(root, "transport");
+            if (transport != NULL) {
+                config_local.mqtt_client.transport = atl_mqtt_get_transport(transport->valuestring);
+            }
+            cJSON *disable_cn_check = cJSON_GetObjectItem(root, "disable_cn_check");
+            if (disable_cn_check != NULL) {
+                config_local.mqtt_client.disable_cn_check = disable_cn_check->valueint;
+            }
+            cJSON *user = cJSON_GetObjectItem(root, "user");
+            if (user != NULL) {
+                strncpy((char*)&config_local.mqtt_client.user, user->valuestring, sizeof(config_local.mqtt_client.user));
+            }
+            cJSON *pass = cJSON_GetObjectItem(root, "pass");
+            if (pass != NULL) {
+                strncpy((char*)&config_local.mqtt_client.pass, pass->valuestring, sizeof(config_local.mqtt_client.pass));
+            }
+            cJSON *qos = cJSON_GetObjectItem(root, "qos");
+            if (qos != NULL) {
+                config_local.mqtt_client.qos = qos->valueint;
+            }
+        }
+
+        /* Delete JSON object */
+        cJSON_Delete(root);
+    }
+    
+    /* Update current configuration */
+    if (xSemaphoreTake(atl_config_mutex, portMAX_DELAY) == pdTRUE) {
+        memcpy(&atl_config, &config_local, sizeof(atl_config_t));
+        xSemaphoreGive(atl_config_mutex);
+    }
+    else {
+        ESP_LOGW(TAG, "Fail to get configuration mutex!");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+
+    /* Commit configuration to NVS */
+    if (atl_config_commit_nvs() != ESP_OK) {
+        ESP_LOGE(TAG, "Fail to commit configuration to NVS!");
+        httpd_resp_send_500(req);
+        return ESP_FAIL;
+    }
+    
+    /* Send the HTTP response */
+    httpd_resp_set_status(req, "302 Temporary Redirect");
+    httpd_resp_set_hdr(req, "Location", "/conf_configuration.html");
+
+    /* iOS requires content in the response to detect a captive portal, simply redirecting is not sufficient. */
+    httpd_resp_send(req, "Redirect to the home portal", HTTPD_RESP_USE_STRLEN);
+
+    /* Blink LED */
+    atl_led_builtin_blink(10, 100, 255, 69, 0);
+    return ESP_OK;
+}
+
+/**
+ * @brief HTTP POST API Handler for configuration webpage
+ */
+static const httpd_uri_t api_v1_system_set_conf = {
+    .uri = "/api/v1/system/set/conf",
+    .method = HTTP_POST,
+    .handler = api_v1_system_set_conf_handler
 };
 
 /**
@@ -1351,8 +1565,8 @@ httpd_handle_t atl_webserver_init(void) {
         // httpd_register_uri_handler(server, &conf_4g_get);
         // httpd_register_uri_handler(server, &conf_lora_get);
         httpd_register_uri_handler(server, &conf_configuration_get);
-        httpd_register_uri_handler(server, &api_v1_system_conf);
-        // httpd_register_uri_handler(server, &conf_configuration_post);
+        httpd_register_uri_handler(server, &api_v1_system_get_conf);
+        httpd_register_uri_handler(server, &api_v1_system_set_conf);
         httpd_register_uri_handler(server, &conf_fw_update_get);
         httpd_register_uri_handler(server, &conf_fw_update_post);
         httpd_register_uri_handler(server, &conf_reboot_get);

@@ -34,6 +34,13 @@ typedef enum {
 } atl_wifi_mode_e;
 
 /**
+ * @brief Get the wifi mode enum
+ * @param mode_str 
+ * @return Function enum
+ */
+atl_wifi_mode_e atl_wifi_get_mode(char* mode_str);
+
+/**
  * @brief Get the wifi mode string object
  * @param mode 
  * @return Function enum const* 
