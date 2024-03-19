@@ -4,7 +4,7 @@
  * @brief LED functions.
  * @version 0.1.0
  * @date 2024-03-08 (created)
- * @date 2024-03-08 (updated)
+ * @date 2024-03-18 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -14,6 +14,8 @@
  * without warranties or  conditions of any kind</em>, either express or implied. See the License for the specific language governing permissions 
  * and limitations under the License.
  */
+#include <stdio.h>
+#include <string.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <freertos/semphr.h>
@@ -25,6 +27,12 @@
 /* Constants */
 static const char *TAG = "atl-led"; /**< Function identification */
 static const uint16_t led_mutex_timeout = 5000; /**< LED builtin mutex default timeout */
+const char *atl_led_behaviour_str[] = {
+    "ATL_LED_DISABLED",
+    "ATL_LED_ENABLED_FAILS",
+    "ATL_LED_ENABLED_COMM_FAILS",
+    "ATL_LED_ENABLED_FULL",
+};
 
 /* Global variables */
 static SemaphoreHandle_t led_mutex; /**< LED builtin mutex */
@@ -70,6 +78,32 @@ static void atl_led_task(void *args) {
         /* Toogle led builtin */
         atl_led_builtin_toogle();
     }    
+}
+
+/**
+ * @brief Get the led behaviour string object
+ * @param behaviour 
+ * @return Function enum const* 
+ */
+const char* atl_led_get_behaviour_str(atl_led_behaviour_e behaviour) {
+    return atl_led_behaviour_str[behaviour];
+}
+
+/**
+ * @brief Get the led behaviour string object
+ * @param behaviour_str 
+ * @return Function enum
+ */
+atl_led_behaviour_e atl_led_get_behaviour(char* behaviour_str) {
+    uint8_t i = 0;
+    while (atl_led_behaviour_str[i] != NULL) {
+        if (strcmp(behaviour_str, atl_led_behaviour_str[i]) == 0) {
+            return i;
+        } else {
+            i++;
+        }
+    }
+    return 255;
 }
 
 /**

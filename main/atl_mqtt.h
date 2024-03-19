@@ -21,6 +21,54 @@ extern "C" {
 #endif
 
 /**
+ * @typedef atl_mqtt_mode_e
+ * @brief   MQTT mode.
+ */
+typedef enum {
+    ATL_MQTT_DISABLED,
+    ATL_MQTT_AGROTECHLAB_CLOUD,
+    ATL_MQTT_THIRD,    
+} atl_mqtt_mode_e;
+
+/**
+ * @typedef atl_mqtt_qos_e
+ * @brief   MQTT QoS level.
+ */
+typedef enum {
+    ATL_MQTT_QOS0,
+    ATL_MQTT_QOS1,
+    ATL_MQTT_QOS2,
+} atl_mqtt_qos_e;
+
+/**
+ * @brief Get the MQTT mode string object
+ * @param mode 
+ * @return Function enum const* 
+ */
+const char* atl_mqtt_get_mode_str(atl_mqtt_mode_e mode);
+
+/**
+ * @brief Get the MQTT mode enum
+ * @param mode_str 
+ * @return Function enum
+ */
+atl_mqtt_mode_e atl_mqtt_get_mode(char* mode_str);
+
+/**
+ * @brief Get the MQTT transport string object
+ * @param transport 
+ * @return Function enum const* 
+ */
+const char* atl_mqtt_get_transport_str(esp_mqtt_transport_t transport);
+
+/**
+ * @brief Get the MQTT transport enum
+ * @param transport_str 
+ * @return Function enum
+ */
+esp_mqtt_transport_t atl_mqtt_get_transport(char* transport_str);
+
+/**
  * @fn atl_mqtt_init(void)
  * @brief Initialize MQTT client service.
  */

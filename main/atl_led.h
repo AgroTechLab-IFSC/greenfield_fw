@@ -4,7 +4,7 @@
  * @brief LED header.
  * @version 0.1.0
  * @date 2024-03-08 (created)
- * @date 2024-03-10 (updated)
+ * @date 2024-03-18 (updated)
  * 
  * @copyright Copyright &copy; since 2024 <a href="https://agrotechlab.lages.ifsc.edu.br" target="_blank">AgroTechLab</a>.\n
  * ![LICENSE license](../figs/license.png)<br>
@@ -33,6 +33,20 @@ typedef enum {
     ATL_LED_ENABLED_COMM_FAILS,
     ATL_LED_ENABLED_FULL,    
 } atl_led_behaviour_e;
+
+/**
+ * @brief Get the led behaviour string object
+ * @param behaviour 
+ * @return Function enum const* 
+ */
+const char* atl_led_get_behaviour_str(atl_led_behaviour_e behaviour);
+
+/**
+ * @brief Get the led behaviour string object
+ * @param behaviour_str 
+ * @return Function enum
+ */
+atl_led_behaviour_e atl_led_get_behaviour(char* behaviour_str);
 
 /**
  * @typedef atl_led_rgb_color_t
